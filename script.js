@@ -39,7 +39,7 @@
   /** Dias em que a barbearia NÃO funciona (0 = domingo, 1 = segunda). */
   const DIAS_FECHADOS = [0, 1];
 
-  const NUMERO_WHATSAPP = '5511999999999';
+  const NUMERO_WHATSAPP = '5511987648642';
   const CHAVE_PIX = 'contato@barbeariaelite.com.br';
 
   /** "Banco de dados" em memória dos horários já ocupados por data (simulação). */
@@ -70,23 +70,11 @@
    * sessão. Ao integrar com Firebase, troque a simulação por uma consulta
    * real e mantenha a mesma assinatura de retorno.
    */
-  function obterReservasDoDia(isoData) {
-    const seed = isoData.split('').reduce((acc, c) => acc + c.charCodeAt(0), 0);
-    const blocosSimulados = [];
-    // gera 2 a 3 blocos de 1h ocupados, em horários pseudo-aleatórios porém fixos
-    const quantidade = 2 + (seed % 2);
-    for (let i = 0; i < quantidade; i++) {
-      const inicio = ABERTURA_MIN + ((seed * (i + 3)) % 12) * 30;
-      blocosSimulados.push({ inicio, fim: inicio + 60 });
-    }
-    const blocosSessao = RESERVAS_SESSAO[isoData] || [];
-    return [...blocosSimulados, ...blocosSessao];
-  }
+function obterReservasDoDia(isoData) {
+  return RESERVAS_SESSAO[isoData] || [];
+}
 
-  /**
-   * Verifica se um intervalo [inicioMin, inicioMin + duracaoMin) está livre,
-   * respeitando o horário de fechamento e as reservas existentes.
-   */
+  /* Verifica se um intervalo [inicioMin, inicioMin + duracaoMin) está livre, respeitando o horário de fechamento e as reservas existentes.*/
   function verificarDisponibilidade(isoData, inicioMin, duracaoMin) {
     const fimMin = inicioMin + duracaoMin;
     if (fimMin > FECHAMENTO_MIN) return false;
@@ -95,10 +83,7 @@
     return !reservas.some(r => inicioMin < r.fim && fimMin > r.inicio);
   }
 
-  /**
-   * Retorna a grade de horários de início possíveis para uma data + duração,
-   * já marcando quais estão disponíveis.
-   */
+  /* Retorna a grade de horários de início possíveis para uma data + duração, já marcando quais estão disponíveis.*/
   function obterHorariosDisponiveis(isoData, duracaoMin, ehHoje) {
     const agora = new Date();
     const minutosAgora = ehHoje ? (agora.getHours() * 60 + agora.getMinutes() + 30) : 0; // 30min de folga
@@ -112,19 +97,13 @@
     return grade;
   }
 
-  /**
-   * Bloqueia um intervalo de tempo na "agenda" (simulação em memória).
-   * No futuro, este é o ponto de integração com Firebase/Supabase.
-   */
+  /* Bloqueia um intervalo de tempo na "agenda" (simulação em memória). No futuro, este é o ponto de integração com Firebase/Supabase.*/
   function bloquearHorario(isoData, inicioMin, duracaoMin) {
     if (!RESERVAS_SESSAO[isoData]) RESERVAS_SESSAO[isoData] = [];
     RESERVAS_SESSAO[isoData].push({ inicio: inicioMin, fim: inicioMin + duracaoMin });
   }
 
-  /**
-   * Persiste o agendamento completo. Hoje bloqueia o horário em memória
-   * e loga o objeto final; no futuro vira uma chamada real ao backend
-   * (ex: `await db.collection('agendamentos').add(dados)`).
+  /*Persiste o agendamento completo. Hoje bloqueia o horário em memóriae loga o objeto final; no futuro vira uma chamada real ao backend (ex: `await db.collection('agendamentos').add(dados)`).
    */
   function salvarAgendamento(dados) {
     bloquearHorario(dados.data, dados.inicioMin, dados.duracaoMin);
@@ -133,9 +112,7 @@
     return Promise.resolve({ ok: true, dados });
   }
 
-  /* =========================================================
-     1. ESTADO GLOBAL DO AGENDAMENTO
-     ========================================================= */
+  /*1. ESTADO GLOBAL DO AGENDAMENTO */
   const state = {
     servico: null,
     preco: null,
@@ -161,9 +138,7 @@
   const TELAS_SEM_PROGRESSO = ['screen-metodo', 'screen-pix', 'screen-resumo', 'screen-sucesso'];
   let historico = ['screen-servico']; // pilha de navegação
 
-  /* =========================================================
-     2. ELEMENTOS
-     ========================================================= */
+  /*2. ELEMENTOS*/
   const screensEl = document.getElementById('screens');
   const backBtn = document.getElementById('backBtn');
   const progressFill = document.getElementById('progressFill');
@@ -171,9 +146,7 @@
   const progressWrap = document.getElementById('progressWrap');
   const toast = document.getElementById('toast');
 
-  /* =========================================================
-     3. NAVEGAÇÃO ENTRE TELAS
-     ========================================================= */
+  /*3. NAVEGAÇÃO ENTRE TELAS */
   function irPara(idTela, { registrar = true } = {}) {
     const atual = document.querySelector('.screen.active');
     const proxima = document.getElementById(idTela);
@@ -219,9 +192,7 @@
 
   backBtn.addEventListener('click', voltar);
 
-  /* =========================================================
-     4. TOAST (mensagens rápidas, sem alert())
-     ========================================================= */
+  /*4. TOAST (mensagens rápidas, sem alert()) */
   let toastTimer;
   function mostrarToast(mensagem) {
     clearTimeout(toastTimer);
@@ -230,9 +201,7 @@
     toastTimer = setTimeout(() => toast.classList.remove('visible'), 3200);
   }
 
-  /* =========================================================
-     5. TEMA CLARO / ESCURO
-     ========================================================= */
+  /*5. TEMA CLARO / ESCURO */
   const themeToggle = document.getElementById('themeToggle');
   const themeIcon = themeToggle.querySelector('i');
 
@@ -253,9 +222,7 @@
     localStorage.setItem('barbearia-theme', novo);
   });
 
-  /* =========================================================
-     6. ETAPA 1 — ESCOLHA DO SERVIÇO
-     ========================================================= */
+  /*6. ETAPA 1 — ESCOLHA DO SERVIÇO*/
   document.querySelectorAll('#serviceList .option-card').forEach(card => {
     card.addEventListener('click', () => {
       const nome = card.dataset.servico;
@@ -274,10 +241,7 @@
     });
   });
 
-  /* =========================================================
-     7. ETAPA 2 — ESCOLHA DA DATA
-     (pula automaticamente domingo e segunda-feira)
-     ========================================================= */
+  /*7. ETAPA 2 — ESCOLHA DA DATA(pula automaticamente domingo e segunda-feira)*/
   const dateList = document.getElementById('dateList');
   const DIAS_SEMANA = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'];
 
@@ -332,10 +296,7 @@
     dateList.appendChild(btn);
   }
 
-  /* =========================================================
-     8. ETAPA 3 — ESCOLHA DO HORÁRIO
-     (grade de início a cada 30 min; duração vem do serviço)
-     ========================================================= */
+  /*8. ETAPA 3 — ESCOLHA DO HORÁRIO (grade de início a cada 30 min; duração vem do serviço)*/
   const timeGrid = document.getElementById('timeGrid');
   const nextSlot = document.getElementById('nextSlot');
   const nextSlotValue = document.getElementById('nextSlotValue');
@@ -385,9 +346,7 @@
     }
   }
 
-  /* =========================================================
-     9. ETAPA 4 — NOME E WHATSAPP DO CLIENTE
-     ========================================================= */
+  /*9. ETAPA 4 — NOME E WHATSAPP DO CLIENTE */
   const formDados = document.getElementById('formDados');
   const nomeInput = document.getElementById('nomeCliente');
   const telefoneInput = document.getElementById('telefoneCliente');
@@ -438,9 +397,7 @@
     irPara('screen-plano');
   });
 
-  /* =========================================================
-     10. ETAPA 5 — TIPO DE CLIENTE (mensalista ou avulso)
-     ========================================================= */
+  /*10. ETAPA 5 — TIPO DE CLIENTE (mensalista ou avulso) */
   const btnPlanoSim = document.getElementById('btnPlanoSim');
   const btnPlanoNao = document.getElementById('btnPlanoNao');
 
@@ -455,9 +412,8 @@
     });
   });
 
-  /* =========================================================
-     11. ETAPA 6 — DESEJA GARANTIR O HORÁRIO AGORA? (pagamento)
-     ========================================================= */
+  /* 11. ETAPA 6 — DESEJA GARANTIR O HORÁRIO AGORA? (pagamento)*/
+
   const btnPagarSinal = document.getElementById('btnPagarSinal');
   const btnPagarTotal = document.getElementById('btnPagarTotal');
   const btnPagarDepois = document.getElementById('btnPagarDepois');

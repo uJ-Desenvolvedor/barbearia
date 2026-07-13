@@ -118,8 +118,29 @@ function selecionarServico(botao) {
 
   state.servico = botao.dataset.servico;
   state.preco = Number(botao.dataset.preco);
-  state.tempo = botao.dataset.tempo;
-  state.duracaoMinutos = Number(botao.dataset.duracao);
+state.tempo = botao.dataset.tempo;
+
+switch (state.servico) {
+  case 'Corte Masculino':
+    state.duracaoMinutos = 60;
+    break;
+
+  case 'Barba':
+    state.duracaoMinutos = 30;
+    break;
+
+  case 'Corte + Barba':
+    state.duracaoMinutos = 90;
+    break;
+
+  case 'Corte + Sobrancelha':
+    state.duracaoMinutos = 90;
+    break;
+
+  case 'Corte + Barba + Sobrancelha':
+    state.duracaoMinutos = 120;
+    break;
+}
 
   carregarDatas();
   irPara('tela-data');

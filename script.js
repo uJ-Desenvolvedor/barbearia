@@ -18,8 +18,8 @@ const state = {
 let historico = ['tela-servico'];
 
 // Configurações
-const WHATSAPP_NUMERO = '5511999999999';
-const PIX_CHAVE = 'contato@barbeariaelite.com.br';
+const WHATSAPP_NUMERO = '5511951761392';
+const PIX_CHAVE = 'contato@garagemdogueto.com.br';
 
 const DIAS_FECHADOS = [0, 1]; // domingo e segunda
 const DIAS_SEMANA = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'];

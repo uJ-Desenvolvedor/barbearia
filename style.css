@@ -225,6 +225,17 @@ body {
 }
 
 /* Serviços */
+.category-title {
+  font-family: var(--font-heading);
+  font-size: 0.95rem;
+  font-weight: 700;
+  margin: 26px 0 14px;
+}
+
+.category-title:first-of-type {
+  margin-top: 6px;
+}
+
 .card-list {
   display: flex;
   flex-direction: column;
@@ -249,6 +260,11 @@ body {
 
 .card-option:hover {
   border-color: var(--gold);
+}
+
+.card-option.is-selected {
+  border-color: var(--gold);
+  background: var(--gold-dim);
 }
 
 .card-icon {
@@ -358,6 +374,33 @@ body {
   border-color: transparent;
   opacity: 0.6;
   cursor: not-allowed;
+}
+
+.time-btn small {
+  display: block;
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.3px;
+  margin-top: 2px;
+}
+
+.quimica-aviso {
+  background: var(--surface);
+  border: 1.5px solid var(--gold);
+  border-radius: var(--radius-lg);
+  padding: 18px;
+  margin-top: 20px;
+  text-align: center;
+}
+
+.quimica-aviso p {
+  font-size: 0.9rem;
+  color: var(--text-soft);
+  margin-bottom: 14px;
+}
+
+.quimica-aviso .btn {
+  margin: 0;
 }
 
 /* Formulário */

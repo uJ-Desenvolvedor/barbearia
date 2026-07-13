@@ -3,10 +3,12 @@ const state = {
   servico: null,
   preco: null,
   tempo: null,
+  duracaoMinutos: null,
   data: null,
   dataLabel: null,
   diaSemana: null,
   horario: null,
+  horarioTermino: null,
   nome: '',
   whatsapp: '',
   tipoCliente: null,
@@ -21,7 +23,15 @@ const PIX_CHAVE = 'contato@barbeariaelite.com.br';
 
 const DIAS_FECHADOS = [0, 1]; // domingo e segunda
 const DIAS_SEMANA = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'];
-const HORARIOS = ['08:00', '09:00', '10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00', '17:00', '18:00', '19:00', '20:00', '21:00'];
+const HORARIOS = [
+  '08:00', '08:30', '09:00', '09:30', '10:00', '10:30', '11:00', '11:30', '12:00', '12:30',
+  '13:00', '13:30', '14:00', '14:30', '15:00', '15:30', '16:00', '16:30', '17:00', '17:30',
+  '18:00', '18:30', '19:00', '19:30', '20:00'
+];
+
+const ALMOCO_INICIO = horaParaMinutos('13:00');
+const ALMOCO_FIM = horaParaMinutos('14:00');
+const FECHAMENTO = horaParaMinutos('21:00');
 
 // telas que entram na barra de progresso — pagamento e sucesso ficam de fora
 const ETAPAS = ['tela-servico', 'tela-data', 'tela-horario', 'tela-dados', 'tela-resumo'];
@@ -93,16 +103,52 @@ themeBtn.addEventListener('click', () => {
 });
 
 // Serviços
+const quimicaAviso = document.getElementById('quimicaAviso');
+
 function selecionarServico(botao) {
+  const categoria = botao.dataset.categoria;
+
+  if (categoria === 'quimica') {
+    mostrarAvisoQuimica(botao);
+    return;
+  }
+
+  esconderAvisoQuimica();
+  marcarServicoSelecionado(botao);
+
   state.servico = botao.dataset.servico;
   state.preco = Number(botao.dataset.preco);
   state.tempo = botao.dataset.tempo;
+  state.duracaoMinutos = Number(botao.dataset.duracao);
 
   carregarDatas();
   irPara('tela-data');
 }
 
-document.querySelectorAll('#serviceList .card-option').forEach(botao => {
+function marcarServicoSelecionado(botao) {
+  document.querySelectorAll('.card-option').forEach(b => b.classList.remove('is-selected'));
+  botao.classList.add('is-selected');
+}
+
+// químicas dependem de avaliação presencial, então não entram no fluxo automático de agendamento
+function mostrarAvisoQuimica(botao) {
+  marcarServicoSelecionado(botao);
+
+  const nomeServico = botao.dataset.servico;
+  const mensagem = `Olá! Gostaria de consultar a disponibilidade para o serviço: ${nomeServico}.`;
+
+  document.getElementById('btnConsultarDisponibilidade').href =
+    `https://wa.me/${WHATSAPP_NUMERO}?text=${encodeURIComponent(mensagem)}`;
+
+  quimicaAviso.hidden = false;
+  quimicaAviso.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+
+function esconderAvisoQuimica() {
+  quimicaAviso.hidden = true;
+}
+
+document.querySelectorAll('.card-option').forEach(botao => {
   botao.addEventListener('click', () => selecionarServico(botao));
 });
 
@@ -159,10 +205,46 @@ function selecionarData(btn, iso, rotulo, dataCurta, nomeDia, offset) {
 // Horários
 const timeGrid = document.getElementById('timeGrid');
 
+function horaParaMinutos(horario) {
+  const [horas, minutos] = horario.split(':').map(Number);
+  return horas * 60 + minutos;
+}
+
+function minutosParaHora(minutos) {
+  const horas = String(Math.floor(minutos / 60)).padStart(2, '0');
+  const restante = String(minutos % 60).padStart(2, '0');
+  return `${horas}:${restante}`;
+}
+
+// calcula automaticamente o horário em que o serviço termina, a partir da duração escolhida
+function calcularHorarioTermino(horarioInicio, duracaoMinutos) {
+  return minutosParaHora(horaParaMinutos(horarioInicio) + duracaoMinutos);
+}
+
+function estaNoHorarioAlmoco(minutos) {
+  return minutos >= ALMOCO_INICIO && minutos < ALMOCO_FIM;
+}
+
 // simulação de ocupação — no futuro isso vem de uma consulta ao banco
 function horarioOcupado(data, horario) {
   const soma = (data + horario).split('').reduce((total, char) => total + char.charCodeAt(0), 0);
   return soma % 100 < 30;
+}
+
+// verifica se o intervalo inteiro do serviço está livre, considerando ocupação e almoço
+function intervaloDisponivel(data, horarioInicio, duracaoMinutos) {
+  const inicio = horaParaMinutos(horarioInicio);
+  const fim = inicio + duracaoMinutos;
+
+  if (fim > FECHAMENTO) return false;
+
+  for (let minutos = inicio; minutos < fim; minutos += 30) {
+    if (estaNoHorarioAlmoco(minutos) || horarioOcupado(data, minutosParaHora(minutos))) {
+      return false;
+    }
+  }
+
+  return true;
 }
 
 function carregarHorarios(data, ehHoje) {
@@ -174,26 +256,28 @@ function carregarHorarios(data, ehHoje) {
   const minutoAtual = agora.getHours() * 60 + agora.getMinutes();
 
   HORARIOS.forEach(horario => {
-    const minutoHorario = Number(horario.split(':')[0]) * 60;
+    const minutoHorario = horaParaMinutos(horario);
+    const almoco = estaNoHorarioAlmoco(minutoHorario);
     const jaPassou = ehHoje && minutoHorario < minutoAtual + 30;
-    const indisponivel = jaPassou || horarioOcupado(data, horario);
+    const indisponivel = jaPassou || almoco || !intervaloDisponivel(data, horario, state.duracaoMinutos);
 
-    timeGrid.appendChild(criarBotaoHorario(horario, indisponivel));
+    timeGrid.appendChild(criarBotaoHorario(horario, indisponivel, almoco));
   });
 }
 
-function criarBotaoHorario(horario, indisponivel) {
+function criarBotaoHorario(horario, indisponivel, almoco) {
   const btn = document.createElement('button');
   btn.type = 'button';
   btn.className = 'time-btn';
-  btn.textContent = horario;
   btn.disabled = indisponivel;
+  btn.innerHTML = almoco ? `${horario}<small>Almoço</small>` : horario;
 
   if (!indisponivel) {
     btn.addEventListener('click', () => {
       document.querySelectorAll('.time-btn').forEach(b => b.classList.remove('is-selected'));
       btn.classList.add('is-selected');
       state.horario = horario;
+      state.horarioTermino = calcularHorarioTermino(horario, state.duracaoMinutos);
       setTimeout(() => irPara('tela-dados'), 150);
     });
   }
@@ -273,7 +357,7 @@ function gerarResumo() {
     ['Tempo', state.tempo],
     ['Tipo de cliente', state.tipoCliente],
     ['Data', state.diaSemana],
-    ['Horário', state.horario]
+    ['Horário', `${state.horario} às ${state.horarioTermino}`]
   ];
 
   summaryCard.innerHTML = linhas
@@ -370,6 +454,7 @@ function reiniciarFluxo() {
   formDados.reset();
   document.querySelectorAll('input[type="radio"]').forEach(input => (input.checked = false));
   document.querySelectorAll('.is-selected, .is-checked').forEach(el => el.classList.remove('is-selected', 'is-checked'));
+  esconderAvisoQuimica();
   pixPanel.hidden = true;
   btnConfirmar.disabled = true;
 

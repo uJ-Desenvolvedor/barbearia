@@ -4,8 +4,8 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <meta name="theme-color" content="#111111">
-  <title>Garagem Do Gueto — Agendar horário</title>
-  <meta name="description" content="Agende seu horário na Garagem Do Gueto em poucos toques.">
+  <title>Barbearia Elite — Agendar horário</title>
+  <meta name="description" content="Agende seu horário na Barbearia Elite em poucos toques.">
 
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -42,57 +42,152 @@
       <section class="screen is-active" id="tela-servico">
         <div class="brand">
           <div class="brand-icon"><i class="fa-solid fa-scissors"></i></div>
-          <p>Garagem Do Gueto</p>
+          <p>Barbearia<strong>Elite</strong></p>
         </div>
 
         <h1>Escolha o serviço</h1>
         <p class="subtitle">Toque em um card para continuar</p>
 
-        <div class="card-list" id="serviceList">
-          <button type="button" class="card-option" data-servico="Corte Masculino" data-preco="45" data-tempo="1 hora">
+        <h2 class="category-title">✂️ Combos</h2>
+        <div class="card-list" id="serviceCombos">
+          <button type="button" class="card-option" data-categoria="combo" data-servico="Corte" data-preco="40" data-tempo="1 hora" data-duracao="60">
             <span class="card-icon">✂️</span>
             <span class="card-text">
-              <strong>Corte Masculino</strong>
-              <small>R$45 · 1 hora</small>
+              <strong>Corte</strong>
+              <small>R$40 · 1 hora</small>
             </span>
             <i class="fa-solid fa-chevron-right"></i>
           </button>
 
-          <button type="button" class="card-option" data-servico="Barba" data-preco="35" data-tempo="30 minutos">
+          <button type="button" class="card-option" data-categoria="combo" data-servico="Corte + Sobrancelha" data-preco="50" data-tempo="1 hora" data-duracao="60">
+            <span class="card-icon">✂️</span>
+            <span class="card-text">
+              <strong>Corte + Sobrancelha</strong>
+              <small>R$50 · 1 hora</small>
+            </span>
+            <i class="fa-solid fa-chevron-right"></i>
+          </button>
+
+          <button type="button" class="card-option" data-categoria="combo" data-servico="Corte + Cavanhaque + Sobrancelha" data-preco="60" data-tempo="1h30" data-duracao="90">
+            <span class="card-icon">💈</span>
+            <span class="card-text">
+              <strong>Corte + Cavanhaque + Sobrancelha</strong>
+              <small>R$60 · 1h30</small>
+            </span>
+            <i class="fa-solid fa-chevron-right"></i>
+          </button>
+
+          <button type="button" class="card-option" data-categoria="combo" data-servico="Corte + Barba + Sobrancelha" data-preco="70" data-tempo="2 horas" data-duracao="120">
+            <span class="card-icon">💈</span>
+            <span class="card-text">
+              <strong>Corte + Barba + Sobrancelha</strong>
+              <small>R$70 · 2 horas</small>
+            </span>
+            <i class="fa-solid fa-chevron-right"></i>
+          </button>
+        </div>
+
+        <h2 class="category-title">💈 Serviços Individuais</h2>
+        <div class="card-list" id="serviceIndividuais">
+          <button type="button" class="card-option" data-categoria="individual" data-servico="Corte" data-preco="40" data-tempo="30 minutos" data-duracao="30">
+            <span class="card-icon">✂️</span>
+            <span class="card-text">
+              <strong>Corte</strong>
+              <small>R$40 · 30 minutos</small>
+            </span>
+            <i class="fa-solid fa-chevron-right"></i>
+          </button>
+
+          <button type="button" class="card-option" data-categoria="individual" data-servico="Barba" data-preco="25" data-tempo="30 minutos" data-duracao="30">
             <span class="card-icon">🧔</span>
             <span class="card-text">
               <strong>Barba</strong>
+              <small>R$25 · 30 minutos</small>
+            </span>
+            <i class="fa-solid fa-chevron-right"></i>
+          </button>
+
+          <button type="button" class="card-option" data-categoria="individual" data-servico="Cavanhaque" data-preco="15" data-tempo="30 minutos" data-duracao="30">
+            <span class="card-icon">🧔</span>
+            <span class="card-text">
+              <strong>Cavanhaque</strong>
+              <small>R$15 · 30 minutos</small>
+            </span>
+            <i class="fa-solid fa-chevron-right"></i>
+          </button>
+
+          <button type="button" class="card-option" data-categoria="individual" data-servico="Sobrancelha" data-preco="15" data-tempo="30 minutos" data-duracao="30">
+            <span class="card-icon">👁️</span>
+            <span class="card-text">
+              <strong>Sobrancelha</strong>
+              <small>R$15 · 30 minutos</small>
+            </span>
+            <i class="fa-solid fa-chevron-right"></i>
+          </button>
+
+          <button type="button" class="card-option" data-categoria="individual" data-servico="Pezinho" data-preco="20" data-tempo="30 minutos" data-duracao="30">
+            <span class="card-icon">✂️</span>
+            <span class="card-text">
+              <strong>Pezinho</strong>
+              <small>R$20 · 30 minutos</small>
+            </span>
+            <i class="fa-solid fa-chevron-right"></i>
+          </button>
+
+          <button type="button" class="card-option" data-categoria="individual" data-servico="Infantil (06 até 10 anos)" data-preco="35" data-tempo="30 minutos" data-duracao="30">
+            <span class="card-icon">🧒</span>
+            <span class="card-text">
+              <strong>Infantil (06 até 10 anos)</strong>
               <small>R$35 · 30 minutos</small>
             </span>
             <i class="fa-solid fa-chevron-right"></i>
           </button>
+        </div>
 
-          <button type="button" class="card-option" data-servico="Corte + Barba" data-preco="70" data-tempo="1h30">
-            <span class="card-icon">💈</span>
+        <h2 class="category-title">✨ Químicas</h2>
+        <div class="card-list" id="serviceQuimicas">
+          <button type="button" class="card-option" data-categoria="quimica" data-servico="Hidratação" data-preco="30">
+            <span class="card-icon">✨</span>
             <span class="card-text">
-              <strong>Corte + Barba</strong>
-              <small>R$70 · 1h30</small>
+              <strong>Hidratação</strong>
+              <small>R$30</small>
             </span>
             <i class="fa-solid fa-chevron-right"></i>
           </button>
 
-          <button type="button" class="card-option" data-servico="Corte + Sobrancelha" data-preco="55" data-tempo="1h30">
-            <span class="card-icon">✂️</span>
+          <button type="button" class="card-option" data-categoria="quimica" data-servico="Luzes" data-preco="70">
+            <span class="card-icon">✨</span>
             <span class="card-text">
-              <strong>Corte + Sobrancelha</strong>
-              <small>R$55 · 1h30</small>
+              <strong>Luzes</strong>
+              <small>R$70</small>
             </span>
             <i class="fa-solid fa-chevron-right"></i>
           </button>
 
-          <button type="button" class="card-option" data-servico="Corte + Barba + Sobrancelha" data-preco="80" data-tempo="2 horas">
-            <span class="card-icon">💈</span>
+          <button type="button" class="card-option" data-categoria="quimica" data-servico="Alisante" data-preco="50">
+            <span class="card-icon">✨</span>
             <span class="card-text">
-              <strong>Corte + Barba + Sobrancelha</strong>
-              <small>R$80 · 2 horas</small>
+              <strong>Alisante</strong>
+              <small>R$50</small>
             </span>
             <i class="fa-solid fa-chevron-right"></i>
           </button>
+
+          <button type="button" class="card-option" data-categoria="quimica" data-servico="Platinado">
+            <span class="card-icon">✨</span>
+            <span class="card-text">
+              <strong>Platinado</strong>
+              <small>Consultar valor</small>
+            </span>
+            <i class="fa-solid fa-chevron-right"></i>
+          </button>
+        </div>
+
+        <div class="quimica-aviso" id="quimicaAviso" hidden>
+          <p>Este serviço necessita de avaliação do barbeiro antes do agendamento.</p>
+          <a href="#" id="btnConsultarDisponibilidade" target="_blank" rel="noopener" class="btn btn-whatsapp">
+            <i class="fa-brands fa-whatsapp"></i> Consultar disponibilidade
+          </a>
         </div>
       </section>
 
@@ -199,7 +294,7 @@
           <p class="pix-hint">QR Code ilustrativo</p>
 
           <div class="pix-key">
-            <span id="pixKeyValue">contato@garagemdogueto.com.br</span>
+            <span id="pixKeyValue">contato@barbeariaelite.com.br</span>
             <button type="button" id="btnCopiarPix">Copiar chave</button>
           </div>
 

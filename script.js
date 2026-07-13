@@ -1,29 +1,21 @@
-/* =========================================================
-   BARBEARIA ELITE — APP DE AGENDAMENTO
-   script.js — fluxo em etapas, sem alert(), transições suaves
-
-   Fluxo: Serviço → Data → Horário → Nome/WhatsApp → Plano →
-          Pagamento → (Método → PIX) → Resumo → WhatsApp
-
-   O sistema reserva TEMPO, não apenas um horário fixo: cada
-   serviço tem uma duração e o horário de término é calculado
-   automaticamente, bloqueando o intervalo correspondente.
-
-   Camada de dados isolada na seção 0, hoje simulada, mas já
-   organizada para uma futura integração com Firebase/Supabase
-   e para um futuro painel do barbeiro (agenda, cancelamentos,
-   bloqueios manuais, receita etc.) sem precisar reescrever o
-   restante do app.
-   ========================================================= */
+/* BARBEARIA ELITE — APP DE AGENDAMENTO
+  script.js — fluxo em etapas, sem alert(), transições suaves
+  Fluxo: Serviço → Data → Horário → Nome/WhatsApp → Plano →
+  Pagamento → (Método → PIX) → Resumo → WhatsApp
+  O sistema reserva TEMPO, não apenas um horário fixo: cada
+  serviço tem uma duração e o horário de término é calculado
+  automaticamente, bloqueando o intervalo correspondente
+  Camada de dados isolada na seção 0, hoje simulada, mas já
+  organizada para uma futura integração com Firebase/Supabase
+  e para um futuro painel do barbeiro (agenda, cancelamentos,
+  bloqueios manuais, receita etc.) sem precisar reescrever o
+   restante do app.*/
 
 (() => {
   'use strict';
+/*0. CAMADA DE DADOS (simulada — pronta para Firebase/Supabase) */
 
-  /* =========================================================
-     0. CAMADA DE DADOS (simulada — pronta para Firebase/Supabase)
-     ========================================================= */
-
-  /** Catálogo de serviços. Duração em minutos para cálculo de tempo. */
+/*Catálogo de serviços. Duração em minutos para cálculo de tempo.*/
   const SERVICOS = {
     'Corte Masculino':               { preco: 45, duracaoMin: 60,  duracaoLabel: '1 hora',               emoji: '✂️' },
     'Barba':                         { preco: 35, duracaoMin: 30,  duracaoLabel: '30 minutos',           emoji: '🧔' },
@@ -36,13 +28,13 @@
   const FECHAMENTO_MIN = 21 * 60; // 21:00
   const PASSO_GRADE_MIN = 30;     // granularidade dos horários de início
 
-  /** Dias em que a barbearia NÃO funciona (0 = domingo, 1 = segunda). */
+  /* Dias em que a barbearia NÃO funciona (0 = domingo, 1 = segunda). */
   const DIAS_FECHADOS = [0, 1];
 
-  const NUMERO_WHATSAPP = '5511987648642';
+  const NUMERO_WHATSAPP = '5511951761392';
   const CHAVE_PIX = 'contato@barbeariaelite.com.br';
 
-  /** "Banco de dados" em memória dos horários já ocupados por data (simulação). */
+  /* "Banco de dados" em memória dos horários já ocupados por data (simulação). */
   const RESERVAS_SESSAO = {};
 
   /* ---------- helpers de tempo ---------- */
@@ -56,19 +48,18 @@
     return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
   }
 
-  /**
-   * Calcula o horário de término a partir de um início e uma duração.
-   * Ex: calcularTempo('14:00', 90) → '15:30'
+  /* Calcula o horário de término a partir de um início e uma duração.
+   Ex: calcularTempo('14:00', 90) → '15:30'
    */
   function calcularTempo(horaInicioStr, duracaoMin) {
     return minutosParaHora(horaParaMinutos(horaInicioStr) + duracaoMin);
   }
 
-  /**
-   * Retorna os blocos já ocupados de uma data: simulação determinística
-   * (para a demo parecer uma agenda real) + agendamentos feitos nesta
-   * sessão. Ao integrar com Firebase, troque a simulação por uma consulta
-   * real e mantenha a mesma assinatura de retorno.
+  /*
+  Retorna os blocos já ocupados de uma data: simulação determinística
+  (para a demo parecer uma agenda real) + agendamentos feitos nesta
+  sessão. Ao integrar com Firebase, troque a simulação por uma consulta
+  real e mantenha a mesma assinatura de retorno.
    */
 function obterReservasDoDia(isoData) {
   return RESERVAS_SESSAO[isoData] || [];
@@ -457,9 +448,7 @@ function obterReservasDoDia(isoData) {
     setTimeout(() => irPara('screen-metodo'), 200);
   }
 
-  /* =========================================================
-     12. ETAPA 7 — FORMA DE PAGAMENTO (PIX ou Cartão)
-     ========================================================= */
+  /*12. ETAPA 7 — FORMA DE PAGAMENTO (PIX ou Cartão */
   document.getElementById('btnMetodoPix').addEventListener('click', () => {
     state.pagamentoForma = 'PIX';
     document.getElementById('valorPixLabel').textContent = formatarReais(state.valorPagar);
@@ -475,9 +464,7 @@ function obterReservasDoDia(isoData) {
     setTimeout(() => irPara('screen-resumo'), 300);
   });
 
-  /* =========================================================
-     13. ETAPA 8 — PAGAMENTO PIX (QR code + chave)
-     ========================================================= */
+  /*13. ETAPA 8 — PAGAMENTO PIX (QR code + chave) */
   document.getElementById('pixChaveValor').textContent = CHAVE_PIX;
 
   document.getElementById('btnCopiarPix').addEventListener('click', function () {
@@ -505,9 +492,7 @@ function obterReservasDoDia(isoData) {
     irPara('screen-resumo');
   });
 
-  /* =========================================================
-     14. ETAPA 9 — RESUMO E CONFIRMAÇÃO
-     ========================================================= */
+  /*14. ETAPA 9 — RESUMO E CONFIRMAÇÃO */
   const summaryCard = document.getElementById('summaryCard');
 
   function montarResumo() {
@@ -631,9 +616,7 @@ function obterReservasDoDia(isoData) {
     window.open(url, '_blank', 'noopener');
   });
 
-  /**
-   * Monta a mensagem final do WhatsApp no formato acordado com o barbeiro.
-   */
+  /* Monta a mensagem final do WhatsApp no formato acordado com o barbeiro.*/
   function montarMensagemWhatsApp(d) {
     let linhaPagamento;
     let linhaValor = '';
@@ -681,9 +664,7 @@ Obrigado.`
     );
   }
 
-  /* =========================================================
-     15. NOVO AGENDAMENTO (reinicia o fluxo)
-     ========================================================= */
+  /*15. NOVO AGENDAMENTO (reinicia o fluxo)*/
   document.getElementById('btnNovo').addEventListener('click', () => {
     Object.assign(state, {
       servico: null, preco: null, duracaoMin: null, duracaoLabel: null,
@@ -703,9 +684,7 @@ Obrigado.`
     atualizarTopbar('screen-servico');
   });
 
-  /* =========================================================
-     16. INICIALIZAÇÃO
-     ========================================================= */
+  /*16. INICIALIZAÇÃO */
   atualizarTopbar('screen-servico');
 
 })();

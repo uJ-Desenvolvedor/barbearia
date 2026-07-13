@@ -1,690 +1,389 @@
-/* BARBEARIA ELITE — APP DE AGENDAMENTO
-  script.js — fluxo em etapas, sem alert(), transições suaves
-  Fluxo: Serviço → Data → Horário → Nome/WhatsApp → Plano →
-  Pagamento → (Método → PIX) → Resumo → WhatsApp
-  O sistema reserva TEMPO, não apenas um horário fixo: cada
-  serviço tem uma duração e o horário de término é calculado
-  automaticamente, bloqueando o intervalo correspondente
-  Camada de dados isolada na seção 0, hoje simulada, mas já
-  organizada para uma futura integração com Firebase/Supabase
-  e para um futuro painel do barbeiro (agenda, cancelamentos,
-  bloqueios manuais, receita etc.) sem precisar reescrever o
-   restante do app.*/
+// Estado da aplicação
+const state = {
+  servico: null,
+  preco: null,
+  tempo: null,
+  data: null,
+  dataLabel: null,
+  diaSemana: null,
+  horario: null,
+  nome: '',
+  whatsapp: '',
+  tipoCliente: null,
+  pagamento: null
+};
 
-(() => {
-  'use strict';
-/*0. CAMADA DE DADOS (simulada — pronta para Firebase/Supabase) */
+let historico = ['tela-servico'];
 
-/*Catálogo de serviços. Duração em minutos para cálculo de tempo.*/
-  const SERVICOS = {
-    'Corte Masculino':               { preco: 45, duracaoMin: 60,  duracaoLabel: '1 hora',               emoji: '✂️' },
-    'Barba':                         { preco: 35, duracaoMin: 30,  duracaoLabel: '30 minutos',           emoji: '🧔' },
-    'Corte + Barba':                 { preco: 70, duracaoMin: 90,  duracaoLabel: '1 hora e 30 minutos',  emoji: '💈' },
-    'Corte + Sobrancelha':           { preco: 55, duracaoMin: 90,  duracaoLabel: '1 hora e 30 minutos',  emoji: '✂️' },
-    'Corte + Barba + Sobrancelha':   { preco: 80, duracaoMin: 120, duracaoLabel: '2 horas',              emoji: '💈' }
-  };
+// Configurações
+const WHATSAPP_NUMERO = '5511999999999';
+const PIX_CHAVE = 'contato@barbeariaelite.com.br';
 
-  const ABERTURA_MIN = 8 * 60;   // 08:00
-  const FECHAMENTO_MIN = 21 * 60; // 21:00
-  const PASSO_GRADE_MIN = 30;     // granularidade dos horários de início
+const DIAS_FECHADOS = [0, 1]; // domingo e segunda
+const DIAS_SEMANA = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'];
+const HORARIOS = ['08:00', '09:00', '10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00', '17:00', '18:00', '19:00', '20:00', '21:00'];
 
-  /* Dias em que a barbearia NÃO funciona (0 = domingo, 1 = segunda). */
-  const DIAS_FECHADOS = [0, 1];
+// telas que entram na barra de progresso — pagamento e sucesso ficam de fora
+const ETAPAS = ['tela-servico', 'tela-data', 'tela-horario', 'tela-dados', 'tela-resumo'];
 
-  const NUMERO_WHATSAPP = '5511951761392';
-  const CHAVE_PIX = 'contato@barbeariaelite.com.br';
+const screens = document.getElementById('screens');
+const backBtn = document.getElementById('backBtn');
+const progress = document.getElementById('progress');
+const progressBar = document.getElementById('progressBar');
+const progressLabel = document.getElementById('progressLabel');
+const toast = document.getElementById('toast');
 
-  /* "Banco de dados" em memória dos horários já ocupados por data (simulação). */
-  const RESERVAS_SESSAO = {};
+// Navegação
+function irPara(id) {
+  const atual = document.querySelector('.screen.is-active');
+  const proxima = document.getElementById(id);
+  if (!proxima || atual === proxima) return;
 
-  /* ---------- helpers de tempo ---------- */
-  function horaParaMinutos(horaStr) {
-    const [h, m] = horaStr.split(':').map(Number);
-    return h * 60 + m;
-  }
-  function minutosParaHora(min) {
-    const h = Math.floor(min / 60);
-    const m = min % 60;
-    return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
-  }
+  atual?.classList.remove('is-active', 'enter-forward', 'enter-back');
+  proxima.classList.add('is-active', 'enter-forward');
 
-  /* Calcula o horário de término a partir de um início e uma duração.
-   Ex: calcularTempo('14:00', 90) → '15:30'
-   */
-  function calcularTempo(horaInicioStr, duracaoMin) {
-    return minutosParaHora(horaParaMinutos(horaInicioStr) + duracaoMin);
-  }
-
-  /*
-  Retorna os blocos já ocupados de uma data: simulação determinística
-  (para a demo parecer uma agenda real) + agendamentos feitos nesta
-  sessão. Ao integrar com Firebase, troque a simulação por uma consulta
-  real e mantenha a mesma assinatura de retorno.
-   */
-function obterReservasDoDia(isoData) {
-  return RESERVAS_SESSAO[isoData] || [];
+  historico.push(id);
+  atualizarTopbar(id);
+  screens.scrollTop = 0;
 }
 
-  /* Verifica se um intervalo [inicioMin, inicioMin + duracaoMin) está livre, respeitando o horário de fechamento e as reservas existentes.*/
-  function verificarDisponibilidade(isoData, inicioMin, duracaoMin) {
-    const fimMin = inicioMin + duracaoMin;
-    if (fimMin > FECHAMENTO_MIN) return false;
+function voltar() {
+  if (historico.length <= 1) return;
+  historico.pop();
+  const anterior = historico[historico.length - 1];
 
-    const reservas = obterReservasDoDia(isoData);
-    return !reservas.some(r => inicioMin < r.fim && fimMin > r.inicio);
+  document.querySelector('.screen.is-active')?.classList.remove('is-active', 'enter-forward', 'enter-back');
+  document.getElementById(anterior).classList.add('is-active', 'enter-back');
+
+  atualizarTopbar(anterior);
+  screens.scrollTop = 0;
+}
+
+function atualizarTopbar(id) {
+  const passo = ETAPAS.indexOf(id);
+
+  if (passo === -1) {
+    progress.style.opacity = 0;
+  } else {
+    progress.style.opacity = 1;
+    progressBar.style.width = `${((passo + 1) / ETAPAS.length) * 100}%`;
+    progressLabel.textContent = `Etapa ${passo + 1} de ${ETAPAS.length}`;
   }
 
-  /* Retorna a grade de horários de início possíveis para uma data + duração, já marcando quais estão disponíveis.*/
-  function obterHorariosDisponiveis(isoData, duracaoMin, ehHoje) {
-    const agora = new Date();
-    const minutosAgora = ehHoje ? (agora.getHours() * 60 + agora.getMinutes() + 30) : 0; // 30min de folga
+  backBtn.hidden = historico.length <= 1 || id === 'tela-sucesso';
+}
 
-    const grade = [];
-    for (let inicio = ABERTURA_MIN; inicio + duracaoMin <= FECHAMENTO_MIN; inicio += PASSO_GRADE_MIN) {
-      const passou = inicio < minutosAgora;
-      const disponivel = !passou && verificarDisponibilidade(isoData, inicio, duracaoMin);
-      grade.push({ horario: minutosParaHora(inicio), inicioMin: inicio, disponivel });
+backBtn.addEventListener('click', voltar);
+
+// Tema
+const themeBtn = document.getElementById('themeBtn');
+const themeIcon = themeBtn.querySelector('i');
+
+function aplicarTema(tema) {
+  document.body.dataset.theme = tema === 'light' ? 'light' : '';
+  themeIcon.className = tema === 'light' ? 'fa-solid fa-sun' : 'fa-solid fa-moon';
+}
+
+aplicarTema(localStorage.getItem('tema') || 'dark');
+
+themeBtn.addEventListener('click', () => {
+  const novoTema = document.body.dataset.theme === 'light' ? 'dark' : 'light';
+  aplicarTema(novoTema);
+  localStorage.setItem('tema', novoTema);
+});
+
+// Serviços
+function selecionarServico(botao) {
+  state.servico = botao.dataset.servico;
+  state.preco = Number(botao.dataset.preco);
+  state.tempo = botao.dataset.tempo;
+
+  carregarDatas();
+  irPara('tela-data');
+}
+
+document.querySelectorAll('#serviceList .card-option').forEach(botao => {
+  botao.addEventListener('click', () => selecionarServico(botao));
+});
+
+// Calendário
+const dateList = document.getElementById('dateList');
+
+function carregarDatas() {
+  dateList.innerHTML = '';
+  document.getElementById('dataSubtitle').textContent = `${state.servico} · R$${state.preco}`;
+
+  const hoje = new Date();
+  let adicionadas = 0;
+  let offset = 0;
+
+  while (adicionadas < 5) {
+    const dia = new Date(hoje);
+    dia.setDate(hoje.getDate() + offset);
+
+    if (!DIAS_FECHADOS.includes(dia.getDay())) {
+      dateList.appendChild(criarBotaoData(dia, offset));
+      adicionadas++;
     }
-    return grade;
+    offset++;
   }
+}
 
-  /* Bloqueia um intervalo de tempo na "agenda" (simulação em memória). No futuro, este é o ponto de integração com Firebase/Supabase.*/
-  function bloquearHorario(isoData, inicioMin, duracaoMin) {
-    if (!RESERVAS_SESSAO[isoData]) RESERVAS_SESSAO[isoData] = [];
-    RESERVAS_SESSAO[isoData].push({ inicio: inicioMin, fim: inicioMin + duracaoMin });
-  }
+function criarBotaoData(dia, offset) {
+  const iso = dia.toISOString().split('T')[0];
+  const dataCurta = dia.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
+  const nomeDia = DIAS_SEMANA[dia.getDay()];
+  const rotulo = offset === 0 ? 'Hoje' : offset === 1 ? 'Amanhã' : nomeDia;
 
-  /*Persiste o agendamento completo. Hoje bloqueia o horário em memóriae loga o objeto final; no futuro vira uma chamada real ao backend (ex: `await db.collection('agendamentos').add(dados)`).
-   */
-  function salvarAgendamento(dados) {
-    bloquearHorario(dados.data, dados.inicioMin, dados.duracaoMin);
-    // eslint-disable-next-line no-console
-    console.log('[agendamento salvo — simulação]', dados);
-    return Promise.resolve({ ok: true, dados });
-  }
+  const btn = document.createElement('button');
+  btn.type = 'button';
+  btn.className = 'date-btn';
+  btn.innerHTML = `<span>${rotulo}</span><small>${dataCurta}</small>`;
+  btn.addEventListener('click', () => selecionarData(btn, iso, rotulo, dataCurta, nomeDia, offset));
 
-  /*1. ESTADO GLOBAL DO AGENDAMENTO */
-  const state = {
-    servico: null,
-    preco: null,
-    duracaoMin: null,
-    duracaoLabel: null,
-    data: null,          // ISO yyyy-mm-dd
-    dataLabel: null,
-    diaSemanaLabel: null,
-    horario: null,        // "HH:MM" de início
-    inicioMin: null,
-    horarioFim: null,     // "HH:MM" de término (calculado)
-    nome: '',
-    whatsapp: '',
-    plano: null,           // "Mensalista" | "Cliente Avulso"
-    pagamentoTipo: null,   // "sinal" | "total" | "depois"
-    pagamentoForma: null,  // "PIX" | "Cartão de Crédito" | null
-    valorPagar: 0,
-    statusPagamento: null  // "Sinal pago" | "Pago" | "Pendente"
-  };
+  return btn;
+}
 
-  /* ordem das telas principais (para a barra de progresso) */
-  const ETAPAS = ['screen-servico', 'screen-data', 'screen-horario', 'screen-dados', 'screen-plano', 'screen-pagamento'];
-  const TELAS_SEM_PROGRESSO = ['screen-metodo', 'screen-pix', 'screen-resumo', 'screen-sucesso'];
-  let historico = ['screen-servico']; // pilha de navegação
+function selecionarData(btn, iso, rotulo, dataCurta, nomeDia, offset) {
+  document.querySelectorAll('.date-btn').forEach(b => b.classList.remove('is-selected'));
+  btn.classList.add('is-selected');
 
-  /*2. ELEMENTOS*/
-  const screensEl = document.getElementById('screens');
-  const backBtn = document.getElementById('backBtn');
-  const progressFill = document.getElementById('progressFill');
-  const progressLabel = document.getElementById('progressLabel');
-  const progressWrap = document.getElementById('progressWrap');
-  const toast = document.getElementById('toast');
+  state.data = iso;
+  state.dataLabel = `${rotulo} · ${dataCurta}`;
+  state.diaSemana = `${nomeDia}-feira`;
 
-  /*3. NAVEGAÇÃO ENTRE TELAS */
-  function irPara(idTela, { registrar = true } = {}) {
-    const atual = document.querySelector('.screen.active');
-    const proxima = document.getElementById(idTela);
-    if (!proxima || atual === proxima) return;
+  carregarHorarios(iso, offset === 0);
+  setTimeout(() => irPara('tela-horario'), 150);
+}
 
-    atual?.classList.remove('active', 'enter-forward', 'enter-back');
-    proxima.classList.add('active', 'enter-forward');
+// Horários
+const timeGrid = document.getElementById('timeGrid');
 
-    if (registrar) historico.push(idTela);
+// simulação de ocupação — no futuro isso vem de uma consulta ao banco
+function horarioOcupado(data, horario) {
+  const soma = (data + horario).split('').reduce((total, char) => total + char.charCodeAt(0), 0);
+  return soma % 100 < 30;
+}
 
-    atualizarTopbar(idTela);
-    screensEl.scrollTop = 0;
-  }
+function carregarHorarios(data, ehHoje) {
+  timeGrid.innerHTML = '';
+  state.horario = null;
+  document.getElementById('horarioSubtitle').textContent = `${state.servico} · ${state.dataLabel}`;
 
-  function voltar() {
-    if (historico.length <= 1) return;
-    historico.pop();
-    const anterior = historico[historico.length - 1];
+  const agora = new Date();
+  const minutoAtual = agora.getHours() * 60 + agora.getMinutes();
 
-    const atual = document.querySelector('.screen.active');
-    const alvo = document.getElementById(anterior);
-    atual?.classList.remove('active', 'enter-forward', 'enter-back');
-    alvo.classList.add('active', 'enter-back');
+  HORARIOS.forEach(horario => {
+    const minutoHorario = Number(horario.split(':')[0]) * 60;
+    const jaPassou = ehHoje && minutoHorario < minutoAtual + 30;
+    const indisponivel = jaPassou || horarioOcupado(data, horario);
 
-    atualizarTopbar(anterior);
-    screensEl.scrollTop = 0;
-  }
-
-  function atualizarTopbar(idTela) {
-    const indexEtapa = ETAPAS.indexOf(idTela);
-
-    if (indexEtapa === -1) {
-      progressWrap.style.opacity = TELAS_SEM_PROGRESSO.includes(idTela) ? '0' : '1';
-    } else {
-      progressWrap.style.opacity = '1';
-      const percentual = ((indexEtapa + 1) / ETAPAS.length) * 100;
-      progressFill.style.width = `${percentual}%`;
-      progressLabel.textContent = `Etapa ${indexEtapa + 1} de ${ETAPAS.length}`;
-    }
-
-    backBtn.hidden = historico.length <= 1 || idTela === 'screen-sucesso';
-  }
-
-  backBtn.addEventListener('click', voltar);
-
-  /*4. TOAST (mensagens rápidas, sem alert()) */
-  let toastTimer;
-  function mostrarToast(mensagem) {
-    clearTimeout(toastTimer);
-    toast.textContent = mensagem;
-    toast.classList.add('visible');
-    toastTimer = setTimeout(() => toast.classList.remove('visible'), 3200);
-  }
-
-  /*5. TEMA CLARO / ESCURO */
-  const themeToggle = document.getElementById('themeToggle');
-  const themeIcon = themeToggle.querySelector('i');
-
-  function aplicarTema(tema) {
-    if (tema === 'light') {
-      document.body.setAttribute('data-theme', 'light');
-      themeIcon.className = 'fa-solid fa-sun';
-    } else {
-      document.body.removeAttribute('data-theme');
-      themeIcon.className = 'fa-solid fa-moon';
-    }
-  }
-  aplicarTema(localStorage.getItem('barbearia-theme') || 'dark');
-
-  themeToggle.addEventListener('click', () => {
-    const novo = document.body.getAttribute('data-theme') === 'light' ? 'dark' : 'light';
-    aplicarTema(novo);
-    localStorage.setItem('barbearia-theme', novo);
+    timeGrid.appendChild(criarBotaoHorario(horario, indisponivel));
   });
+}
 
-  /*6. ETAPA 1 — ESCOLHA DO SERVIÇO*/
-  document.querySelectorAll('#serviceList .option-card').forEach(card => {
-    card.addEventListener('click', () => {
-      const nome = card.dataset.servico;
-      const info = SERVICOS[nome];
+function criarBotaoHorario(horario, indisponivel) {
+  const btn = document.createElement('button');
+  btn.type = 'button';
+  btn.className = 'time-btn';
+  btn.textContent = horario;
+  btn.disabled = indisponivel;
 
-      state.servico = nome;
-      state.preco = info.preco;
-      state.duracaoMin = info.duracaoMin;
-      state.duracaoLabel = info.duracaoLabel;
-
-      document.getElementById('selectedServiceLabel').textContent =
-        `${info.emoji} ${nome} · R$${info.preco}`;
-
-      gerarDatas();
-      irPara('screen-data');
-    });
-  });
-
-  /*7. ETAPA 2 — ESCOLHA DA DATA(pula automaticamente domingo e segunda-feira)*/
-  const dateList = document.getElementById('dateList');
-  const DIAS_SEMANA = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'];
-
-  function gerarDatas() {
-    dateList.innerHTML = '';
-    const hoje = new Date();
-    let diasAdicionados = 0;
-    let offset = 0;
-
-    while (diasAdicionados < 5) {
-      const dia = new Date(hoje);
-      dia.setDate(hoje.getDate() + offset);
-
-      if (!DIAS_FECHADOS.includes(dia.getDay())) {
-        criarBotaoData(dia, offset);
-        diasAdicionados++;
-      }
-      offset++;
-    }
-  }
-
-  function criarBotaoData(dia, offset) {
-    const iso = dia.toISOString().split('T')[0];
-    const dataFormatada = dia.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
-    const nomeDiaSemana = DIAS_SEMANA[dia.getDay()];
-
-    let rotulo;
-    if (offset === 0) rotulo = 'Hoje';
-    else if (offset === 1) rotulo = 'Amanhã';
-    else rotulo = nomeDiaSemana;
-
-    const btn = document.createElement('button');
-    btn.type = 'button';
-    btn.className = 'date-btn';
-    btn.dataset.iso = iso;
-    btn.innerHTML = `<span class="date-day">${rotulo}</span><span class="date-num">${dataFormatada}</span>`;
-
+  if (!indisponivel) {
     btn.addEventListener('click', () => {
-      document.querySelectorAll('.date-btn').forEach(b => b.classList.remove('selected'));
-      btn.classList.add('selected');
-
-      state.data = iso;
-      state.dataLabel = `${rotulo} · ${dataFormatada}`;
-      state.diaSemanaLabel = nomeDiaSemana + '-feira';
-      document.getElementById('dateLabel').textContent = `${state.servico} · ${state.dataLabel}`;
-
-      gerarHorarios(iso, offset === 0);
-
-      setTimeout(() => irPara('screen-horario'), 180);
+      document.querySelectorAll('.time-btn').forEach(b => b.classList.remove('is-selected'));
+      btn.classList.add('is-selected');
+      state.horario = horario;
+      setTimeout(() => irPara('tela-dados'), 150);
     });
-
-    dateList.appendChild(btn);
   }
 
-  /*8. ETAPA 3 — ESCOLHA DO HORÁRIO (grade de início a cada 30 min; duração vem do serviço)*/
-  const timeGrid = document.getElementById('timeGrid');
-  const nextSlot = document.getElementById('nextSlot');
-  const nextSlotValue = document.getElementById('nextSlotValue');
+  return btn;
+}
 
-  function gerarHorarios(isoData, ehHoje) {
-    timeGrid.innerHTML = '';
-    state.horario = null;
+// Dados do cliente
+const formDados = document.getElementById('formDados');
+const campoNome = document.getElementById('nome');
+const campoWhatsapp = document.getElementById('whatsapp');
 
-    const grade = obterHorariosDisponiveis(isoData, state.duracaoMin, ehHoje);
-    let primeiroLivre = null;
+function validarFormulario() {
+  const erros = {};
 
-    grade.forEach(({ horario, inicioMin, disponivel }) => {
-      if (disponivel && primeiroLivre === null) primeiroLivre = horario;
-
-      const btn = document.createElement('button');
-      btn.type = 'button';
-      btn.className = 'time-btn';
-
-      if (!disponivel) {
-        btn.classList.add('busy');
-        btn.disabled = true;
-        btn.innerHTML = `${horario}<span class="time-tag">ESGOTADO</span>`;
-      } else {
-        btn.textContent = horario;
-        btn.addEventListener('click', () => {
-          document.querySelectorAll('.time-btn').forEach(b => b.classList.remove('selected'));
-          btn.classList.add('selected');
-
-          state.horario = horario;
-          state.inicioMin = inicioMin;
-          state.horarioFim = calcularTempo(horario, state.duracaoMin);
-
-          setTimeout(() => irPara('screen-dados'), 180);
-        });
-      }
-
-      timeGrid.appendChild(btn);
-    });
-
-    if (primeiroLivre) {
-      const rotuloDia = ehHoje ? 'Hoje' : state.dataLabel.split(' · ')[0];
-      nextSlotValue.textContent = `${rotuloDia} às ${primeiroLivre}`;
-      nextSlot.hidden = false;
-    } else {
-      nextSlot.hidden = true;
-      mostrarToast('Nenhum horário livre nesta data. Escolha outro dia.');
-    }
+  if (campoNome.value.trim().length < 3) {
+    erros.nome = 'Digite seu nome completo.';
   }
 
-  /*9. ETAPA 4 — NOME E WHATSAPP DO CLIENTE */
-  const formDados = document.getElementById('formDados');
-  const nomeInput = document.getElementById('nomeCliente');
-  const telefoneInput = document.getElementById('telefoneCliente');
-
-  function limparErroCampo(campo) {
-    const grupo = campo.closest('.field');
-    grupo.classList.remove('invalid');
-    const erro = document.getElementById(`err-${campo.id}`);
-    if (erro) erro.textContent = '';
+  if (campoWhatsapp.value.replace(/\D/g, '').length < 10) {
+    erros.whatsapp = 'Informe um WhatsApp válido com DDD.';
   }
 
-  function mostrarErroCampo(campo, mensagem) {
-    const grupo = campo.closest('.field');
-    grupo.classList.add('invalid');
-    const erro = document.getElementById(`err-${campo.id}`);
-    if (erro) erro.textContent = mensagem;
+  if (!formDados.querySelector('[name="tipoCliente"]:checked')) {
+    erros.tipoCliente = 'Selecione o tipo de cliente.';
   }
 
-  nomeInput.addEventListener('input', () => limparErroCampo(nomeInput));
-  telefoneInput.addEventListener('input', () => limparErroCampo(telefoneInput));
+  return erros;
+}
 
-  formDados.addEventListener('submit', (e) => {
-    e.preventDefault();
+function exibirErros(erros) {
+  const campos = { nome: campoNome, whatsapp: campoWhatsapp };
 
-    const nome = nomeInput.value.trim();
-    const whatsapp = telefoneInput.value.trim();
-    let valido = true;
-
-    if (nome.length < 3) {
-      mostrarErroCampo(nomeInput, 'Digite seu nome completo.');
-      valido = false;
-    } else {
-      limparErroCampo(nomeInput);
-    }
-
-    if (whatsapp.replace(/\D/g, '').length < 10) {
-      mostrarErroCampo(telefoneInput, 'Informe um WhatsApp válido com DDD.');
-      valido = false;
-    } else {
-      limparErroCampo(telefoneInput);
-    }
-
-    if (!valido) return;
-
-    state.nome = nome;
-    state.whatsapp = whatsapp;
-
-    irPara('screen-plano');
+  Object.entries(campos).forEach(([chave, campo]) => {
+    const mensagem = erros[chave] || '';
+    const rotulo = chave[0].toUpperCase() + chave.slice(1);
+    campo.closest('.field').classList.toggle('has-error', Boolean(mensagem));
+    document.getElementById(`erro${rotulo}`).textContent = mensagem;
   });
 
-  /*10. ETAPA 5 — TIPO DE CLIENTE (mensalista ou avulso) */
-  const btnPlanoSim = document.getElementById('btnPlanoSim');
-  const btnPlanoNao = document.getElementById('btnPlanoNao');
+  document.getElementById('erroTipoCliente').textContent = erros.tipoCliente || '';
+}
 
-  [btnPlanoSim, btnPlanoNao].forEach(btn => {
-    btn.addEventListener('click', () => {
-      [btnPlanoSim, btnPlanoNao].forEach(b => b.classList.remove('selected'));
-      btn.classList.add('selected');
-      state.plano = btn.dataset.plano;
+formDados.addEventListener('submit', event => {
+  event.preventDefault();
+  const erros = validarFormulario();
+  exibirErros(erros);
 
-      prepararTelaPagamento();
-      setTimeout(() => irPara('screen-pagamento'), 220);
+  if (Object.keys(erros).length > 0) return;
+
+  state.nome = campoNome.value.trim();
+  state.whatsapp = campoWhatsapp.value.trim();
+  state.tipoCliente = formDados.querySelector('[name="tipoCliente"]:checked').value;
+
+  gerarResumo();
+  irPara('tela-resumo');
+});
+
+// os cards de tipo de cliente e pagamento usam radio inputs nativos por baixo
+document.querySelectorAll('.radio-card input').forEach(input => {
+  input.addEventListener('change', () => {
+    document.querySelectorAll(`input[name="${input.name}"]`).forEach(irmao => {
+      irmao.closest('.radio-card').classList.toggle('is-checked', irmao.checked);
     });
   });
+});
 
-  /* 11. ETAPA 6 — DESEJA GARANTIR O HORÁRIO AGORA? (pagamento)*/
+// Resumo
+const summaryCard = document.getElementById('summaryCard');
 
-  const btnPagarSinal = document.getElementById('btnPagarSinal');
-  const btnPagarTotal = document.getElementById('btnPagarTotal');
-  const btnPagarDepois = document.getElementById('btnPagarDepois');
-  const valorSinalPreview = document.getElementById('valorSinalPreview');
-  const valorTotalPreview = document.getElementById('valorTotalPreview');
+function gerarResumo() {
+  const linhas = [
+    ['Nome', state.nome],
+    ['WhatsApp', state.whatsapp],
+    ['Serviço', state.servico],
+    ['Valor', `R$${state.preco}`],
+    ['Tempo', state.tempo],
+    ['Tipo de cliente', state.tipoCliente],
+    ['Data', state.diaSemana],
+    ['Horário', state.horario]
+  ];
 
-  function formatarReais(valor) {
-    return `R$${valor.toFixed(2).replace('.', ',')}`;
-  }
+  summaryCard.innerHTML = linhas
+    .map(([rotulo, valor]) => `<div><dt>${rotulo}</dt><dd>${valor}</dd></div>`)
+    .join('');
+}
 
-  function prepararTelaPagamento() {
-    const sinal = Math.round(state.preco * 0.10 * 100) / 100;
-    valorSinalPreview.textContent = `${formatarReais(sinal)} (10%) via PIX`;
-    valorTotalPreview.textContent = `${formatarReais(state.preco)} via PIX`;
-    [btnPagarSinal, btnPagarTotal, btnPagarDepois].forEach(b => b.classList.remove('selected'));
-  }
+document.getElementById('btnEditar').addEventListener('click', voltar);
+document.getElementById('btnParaPagamento').addEventListener('click', () => irPara('tela-pagamento'));
 
-  btnPagarSinal.addEventListener('click', () => selecionarTipoPagamento('sinal', btnPagarSinal));
-  btnPagarTotal.addEventListener('click', () => selecionarTipoPagamento('total', btnPagarTotal));
-  btnPagarDepois.addEventListener('click', () => selecionarTipoPagamento('depois', btnPagarDepois));
+// Pagamento
+const pixPanel = document.getElementById('pixPanel');
+const btnConfirmar = document.getElementById('btnConfirmar');
 
-  function selecionarTipoPagamento(tipo, btn) {
-    [btnPagarSinal, btnPagarTotal, btnPagarDepois].forEach(b => b.classList.remove('selected'));
-    btn.classList.add('selected');
-    state.pagamentoTipo = tipo;
-
-    if (tipo === 'depois') {
-      state.pagamentoForma = null;
-      state.valorPagar = 0;
-      state.statusPagamento = 'Pendente';
-      montarResumo();
-      setTimeout(() => irPara('screen-resumo'), 200);
-      return;
-    }
-
-    state.valorPagar = tipo === 'sinal'
-      ? Math.round(state.preco * 0.10 * 100) / 100
-      : state.preco;
-
-    document.getElementById('valorMetodoLabel').textContent = formatarReais(state.valorPagar);
-    setTimeout(() => irPara('screen-metodo'), 200);
-  }
-
-  /*12. ETAPA 7 — FORMA DE PAGAMENTO (PIX ou Cartão */
-  document.getElementById('btnMetodoPix').addEventListener('click', () => {
-    state.pagamentoForma = 'PIX';
-    document.getElementById('valorPixLabel').textContent = formatarReais(state.valorPagar);
-    irPara('screen-pix');
+document.querySelectorAll('input[name="pagamento"]').forEach(input => {
+  input.addEventListener('change', () => {
+    state.pagamento = input.value;
+    pixPanel.hidden = input.value !== 'PIX';
+    btnConfirmar.disabled = false;
   });
+});
 
-  document.getElementById('btnMetodoCartao').addEventListener('click', () => {
-    // apenas interface — sem integração de gateway de pagamento
-    state.pagamentoForma = 'Cartão de Crédito';
-    state.statusPagamento = 'Pendente';
-    mostrarToast('Pagamento por cartão em breve. Você poderá pagar na barbearia.');
-    montarResumo();
-    setTimeout(() => irPara('screen-resumo'), 300);
-  });
+document.getElementById('btnCopiarPix').addEventListener('click', function () {
+  const botao = this;
 
-  /*13. ETAPA 8 — PAGAMENTO PIX (QR code + chave) */
-  document.getElementById('pixChaveValor').textContent = CHAVE_PIX;
+  navigator.clipboard?.writeText(PIX_CHAVE)
+    .then(() => marcarChaveCopiada(botao))
+    .catch(() => mostrarToast('Não foi possível copiar. Copie manualmente.'));
+});
 
-  document.getElementById('btnCopiarPix').addEventListener('click', function () {
-    const finalizarCopia = () => {
-      this.textContent = 'Copiado!';
-      this.classList.add('copiado');
-      setTimeout(() => {
-        this.textContent = 'Copiar chave';
-        this.classList.remove('copiado');
-      }, 2000);
-    };
+function marcarChaveCopiada(botao) {
+  botao.textContent = 'Copiado!';
+  botao.classList.add('is-copied');
 
-    if (navigator.clipboard) {
-      navigator.clipboard.writeText(CHAVE_PIX).then(finalizarCopia).catch(() => {
-        mostrarToast('Não foi possível copiar. Copie manualmente.');
-      });
-    } else {
-      finalizarCopia();
-    }
-  });
+  setTimeout(() => {
+    botao.textContent = 'Copiar chave';
+    botao.classList.remove('is-copied');
+  }, 2000);
+}
 
-  document.getElementById('btnPagamentoRealizado').addEventListener('click', () => {
-    state.statusPagamento = state.pagamentoTipo === 'sinal' ? 'Sinal pago' : 'Pago';
-    montarResumo();
-    irPara('screen-resumo');
-  });
+// WhatsApp
+function gerarMensagemWhatsApp() {
+  const [ano, mes, dia] = state.data.split('-');
 
-  /*14. ETAPA 9 — RESUMO E CONFIRMAÇÃO */
-  const summaryCard = document.getElementById('summaryCard');
+  return [
+    'Olá!',
+    '',
+    'Novo agendamento.',
+    '',
+    'Cliente:',
+    state.nome,
+    '',
+    'WhatsApp:',
+    state.whatsapp,
+    '',
+    'Serviço:',
+    state.servico,
+    '',
+    'Tempo:',
+    state.tempo,
+    '',
+    'Tipo de cliente:',
+    state.tipoCliente,
+    '',
+    'Pagamento:',
+    state.pagamento,
+    '',
+    'Data:',
+    `${dia}/${mes}/${ano}`,
+    '',
+    'Horário:',
+    state.horario,
+    '',
+    'Obrigado.'
+  ].join('\n');
+}
 
-  function montarResumo() {
-    const emoji = SERVICOS[state.servico].emoji;
+btnConfirmar.addEventListener('click', () => {
+  const mensagem = gerarMensagemWhatsApp();
+  const url = `https://wa.me/${WHATSAPP_NUMERO}?text=${encodeURIComponent(mensagem)}`;
 
-    const linhaPagamento = state.pagamentoTipo === 'depois'
-      ? 'Pendente'
-      : `${state.pagamentoTipo === 'sinal' ? 'Sinal' : 'Total'} · ${state.pagamentoForma}`;
+  document.getElementById('btnWhatsapp').href = url;
+  irPara('tela-sucesso');
+  window.open(url, '_blank', 'noopener');
+});
 
-    summaryCard.innerHTML = `
-      <div class="summary-row">
-        <i class="fa-solid fa-user"></i>
-        <span class="summary-row-text">
-          <span class="summary-label">Cliente</span>
-          <span class="summary-value">${state.nome}</span>
-        </span>
-      </div>
-      <div class="summary-divider"></div>
-      <div class="summary-row">
-        <i class="fa-brands fa-whatsapp"></i>
-        <span class="summary-row-text">
-          <span class="summary-label">WhatsApp</span>
-          <span class="summary-value">${state.whatsapp}</span>
-        </span>
-      </div>
-      <div class="summary-divider"></div>
-      <div class="summary-row">
-        <span class="option-emoji" style="width:38px;height:38px;font-size:1.1rem;">${emoji}</span>
-        <span class="summary-row-text">
-          <span class="summary-label">Serviço</span>
-          <span class="summary-value">${state.servico} · R$${state.preco}</span>
-        </span>
-      </div>
-      <div class="summary-divider"></div>
-      <div class="summary-row">
-        <i class="fa-solid fa-hourglass-half"></i>
-        <span class="summary-row-text">
-          <span class="summary-label">Tempo estimado</span>
-          <span class="summary-value">${state.duracaoLabel}</span>
-        </span>
-      </div>
-      <div class="summary-divider"></div>
-      <div class="summary-row">
-        <i class="fa-solid fa-id-card"></i>
-        <span class="summary-row-text">
-          <span class="summary-label">Plano</span>
-          <span class="summary-value">${state.plano}</span>
-        </span>
-      </div>
-      <div class="summary-divider"></div>
-      <div class="summary-row">
-        <i class="fa-solid fa-wallet"></i>
-        <span class="summary-row-text">
-          <span class="summary-label">Pagamento</span>
-          <span class="summary-value">${linhaPagamento}</span>
-        </span>
-      </div>
-      ${state.pagamentoTipo !== 'depois' ? `
-      <div class="summary-divider"></div>
-      <div class="summary-row">
-        <i class="fa-solid fa-sack-dollar"></i>
-        <span class="summary-row-text">
-          <span class="summary-label">${state.pagamentoTipo === 'sinal' ? 'Valor do sinal' : 'Valor pago'}</span>
-          <span class="summary-value">${formatarReais(state.valorPagar)}</span>
-        </span>
-      </div>` : ''}
-      <div class="summary-divider"></div>
-      <div class="summary-row">
-        <i class="fa-solid fa-calendar-day"></i>
-        <span class="summary-row-text">
-          <span class="summary-label">Data</span>
-          <span class="summary-value">${state.diaSemanaLabel}</span>
-        </span>
-      </div>
-      <div class="summary-divider"></div>
-      <div class="summary-row">
-        <i class="fa-solid fa-clock"></i>
-        <span class="summary-row-text">
-          <span class="summary-label">Horário</span>
-          <span class="summary-value">${state.horario} às ${state.horarioFim}</span>
-        </span>
-      </div>
-    `;
-  }
+document.getElementById('btnNovoAgendamento').addEventListener('click', reiniciarFluxo);
 
-  document.getElementById('btnEditar').addEventListener('click', voltar);
+function reiniciarFluxo() {
+  Object.keys(state).forEach(chave => (state[chave] = null));
+  state.nome = '';
+  state.whatsapp = '';
 
-  document.getElementById('btnConfirmarFinal').addEventListener('click', () => {
-    const [ano, mes, dia] = state.data.split('-');
-    const dataBR = `${dia}/${mes}/${ano}`;
+  formDados.reset();
+  document.querySelectorAll('input[type="radio"]').forEach(input => (input.checked = false));
+  document.querySelectorAll('.is-selected, .is-checked').forEach(el => el.classList.remove('is-selected', 'is-checked'));
+  pixPanel.hidden = true;
+  btnConfirmar.disabled = true;
 
-    const dadosFinais = {
-      nome: state.nome,
-      whatsapp: state.whatsapp,
-      servico: state.servico,
-      preco: state.preco,
-      duracaoMin: state.duracaoMin,
-      duracaoLabel: state.duracaoLabel,
-      plano: state.plano,
-      pagamentoTipo: state.pagamentoTipo,
-      pagamentoForma: state.pagamentoForma,
-      valorPagar: state.valorPagar,
-      statusPagamento: state.statusPagamento,
-      data: state.data,
-      dataBR,
-      horario: state.horario,
-      horarioFim: state.horarioFim,
-      inicioMin: state.inicioMin
-    };
+  historico = ['tela-servico'];
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('is-active', 'enter-forward', 'enter-back'));
+  document.getElementById('tela-servico').classList.add('is-active');
+  atualizarTopbar('tela-servico');
+}
 
-    const mensagem = montarMensagemWhatsApp(dadosFinais);
-    const url = `https://wa.me/${NUMERO_WHATSAPP}?text=${encodeURIComponent(mensagem)}`;
-    document.getElementById('btnWhats').href = url;
+// Utilitários
+function mostrarToast(mensagem) {
+  toast.textContent = mensagem;
+  toast.classList.add('is-visible');
+  setTimeout(() => toast.classList.remove('is-visible'), 3000);
+}
 
-    // salva o agendamento (bloqueia o intervalo de tempo correspondente)
-    salvarAgendamento(dadosFinais);
-
-    irPara('screen-sucesso');
-
-    // abre o WhatsApp automaticamente — permitido pois parte de um clique do usuário
-    window.open(url, '_blank', 'noopener');
-  });
-
-  /* Monta a mensagem final do WhatsApp no formato acordado com o barbeiro.*/
-  function montarMensagemWhatsApp(d) {
-    let linhaPagamento;
-    let linhaValor = '';
-
-    if (d.pagamentoTipo === 'depois') {
-      linhaPagamento = 'Pendente';
-    } else if (d.pagamentoTipo === 'sinal') {
-      linhaPagamento = `Sinal ${d.pagamentoForma}`;
-      linhaValor = `\n\nValor do sinal:\n${formatarReais(d.valorPagar)}`;
-    } else {
-      linhaPagamento = `Pago via ${d.pagamentoForma}`;
-      linhaValor = `\n\nValor pago:\n${formatarReais(d.valorPagar)}`;
-    }
-
-    return (
-`Olá!
-
-Novo agendamento.
-
-Cliente:
-${d.nome}
-
-WhatsApp:
-${d.whatsapp}
-
-Serviço:
-${d.servico}
-
-Tempo:
-${d.duracaoLabel}
-
-Plano:
-${d.plano}
-
-Pagamento:
-${linhaPagamento}${linhaValor}
-
-Data:
-${d.dataBR}
-
-Horário:
-${d.horario}
-
-Obrigado.`
-    );
-  }
-
-  /*15. NOVO AGENDAMENTO (reinicia o fluxo)*/
-  document.getElementById('btnNovo').addEventListener('click', () => {
-    Object.assign(state, {
-      servico: null, preco: null, duracaoMin: null, duracaoLabel: null,
-      data: null, dataLabel: null, diaSemanaLabel: null,
-      horario: null, inicioMin: null, horarioFim: null,
-      nome: '', whatsapp: '', plano: null,
-      pagamentoTipo: null, pagamentoForma: null, valorPagar: 0, statusPagamento: null
-    });
-
-    formDados.reset();
-    document.querySelectorAll('.date-btn.selected, .time-btn.selected, .plano-card.selected')
-      .forEach(b => b.classList.remove('selected'));
-
-    historico = ['screen-servico'];
-    document.querySelectorAll('.screen').forEach(s => s.classList.remove('active', 'enter-forward', 'enter-back'));
-    document.getElementById('screen-servico').classList.add('active');
-    atualizarTopbar('screen-servico');
-  });
-
-  /*16. INICIALIZAÇÃO */
-  atualizarTopbar('screen-servico');
-
-})();
+atualizarTopbar('tela-servico');

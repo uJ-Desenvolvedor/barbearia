@@ -1,288 +1,237 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<meta name="theme-color" content="#111111">
-<title>GaragemDOGueto — Agendar horário</title>
-<meta name="description" content="Agende seu horário na GaragemDOGueto em poucos toques.">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="theme-color" content="#111111">
+  <title>Barbearia Elite — Agendar horário</title>
+  <meta name="description" content="Agende seu horário na Barbearia Elite em poucos toques.">
 
-<!-- Fontes -->
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Sora:wght@600;700;800&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Sora:wght@600;700;800&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
 
-<!-- Ícones -->
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
-
-<link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="style.css">
 </head>
 <body>
 
-<!-- APP — contêiner único, estilo aplicativo mobile-first-->
-<div class="app" id="app">
+  <div class="app">
 
-  <!-- ---------- TOPBAR: voltar, progresso, tema ---------- -->
-  <header class="topbar">
-    <button id="backBtn" class="icon-btn back-btn" aria-label="Voltar" hidden>
-      <i class="fa-solid fa-arrow-left"></i>
-    </button>
+    <!-- Header -->
+    <header class="topbar">
+      <button type="button" id="backBtn" class="icon-btn" aria-label="Voltar" hidden>
+        <i class="fa-solid fa-arrow-left"></i>
+      </button>
 
-    <div class="progress-wrap" id="progressWrap">
-      <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
-      <span class="progress-label" id="progressLabel">Etapa 1 de 6</span>
-    </div>
-
-    <button id="themeToggle" class="icon-btn" aria-label="Alternar tema">
-      <i class="fa-solid fa-moon"></i>
-    </button>
-  </header>
-
-  <!-- ---------- TELAS ---------- -->
-  <main class="screens" id="screens">
-
-    <!-- TELA 1 — SERVIÇO -->
-    <section class="screen active" id="screen-servico" data-step="1">
-      <div class="brand">
-        <div class="brand-icon"><i class="fa-solid fa-scissors"></i></div>
-        <p class="brand-name">GaragemD<strong>OGueto</strong></p>
+      <div class="progress" id="progress">
+        <div class="progress-track">
+          <div class="progress-bar" id="progressBar"></div>
+        </div>
+        <span id="progressLabel" aria-live="polite">Etapa 1 de 5</span>
       </div>
 
-      <h1 class="screen-title">Escolha o serviço</h1>
-      <p class="screen-sub">Toque em um card para continuar</p>
+      <button type="button" id="themeBtn" class="icon-btn" aria-label="Alternar tema">
+        <i class="fa-solid fa-moon"></i>
+      </button>
+    </header>
 
-      <div class="option-list" id="serviceList">
-        <button type="button" class="option-card" data-servico="Corte Masculino" data-preco="45" data-duracao-min="60" data-duracao-label="1 hora" data-emoji="✂️">
-          <span class="option-emoji">✂️</span>
-          <span class="option-info">
-            <span class="option-name">Corte Masculino</span>
-            <span class="option-meta">R$40 &middot; 1 hora</span>
-          </span>
-          <i class="fa-solid fa-chevron-right option-arrow"></i>
-        </button>
+    <main id="screens">
 
-        <button type="button" class="option-card" data-servico="Barba" data-preco="35" data-duracao-min="30" data-duracao-label="30 minutos" data-emoji="🧔">
-          <span class="option-emoji">🧔</span>
-          <span class="option-info">
-            <span class="option-name">Barba</span>
-            <span class="option-meta">R$30 &middot; 30 minutos</span>
-          </span>
-          <i class="fa-solid fa-chevron-right option-arrow"></i>
-        </button>
-
-        <button type="button" class="option-card" data-servico="Corte + Barba" data-preco="70" data-duracao-min="90" data-duracao-label="1 hora e 30 minutos" data-emoji="💈">
-          <span class="option-emoji">💈</span>
-          <span class="option-info">
-            <span class="option-name">Corte + Barba</span>
-            <span class="option-meta">R$65 &middot; 1h30</span>
-          </span>
-          <i class="fa-solid fa-chevron-right option-arrow"></i>
-        </button>
-
-        <button type="button" class="option-card" data-servico="Corte + Sobrancelha" data-preco="55" data-duracao-min="90" data-duracao-label="1 hora e 30 minutos" data-emoji="✂️">
-          <span class="option-emoji">✂️</span>
-          <span class="option-info">
-            <span class="option-name">Corte + Sobrancelha</span>
-            <span class="option-meta">R$55 &middot; 1h30</span>
-          </span>
-          <i class="fa-solid fa-chevron-right option-arrow"></i>
-        </button>
-
-        <button type="button" class="option-card" data-servico="Corte + Barba + Sobrancelha" data-preco="80" data-duracao-min="120" data-duracao-label="2 horas" data-emoji="💈">
-          <span class="option-emoji">💈</span>
-          <span class="option-info">
-            <span class="option-name">Corte + Barba + Sobrancelha</span>
-            <span class="option-meta">R$80 &middot; 2 horas</span>
-          </span>
-          <i class="fa-solid fa-chevron-right option-arrow"></i>
-        </button>
-      </div>
-    </section>
-
-    <!-- TELA 2 — DATA -->
-    <section class="screen" id="screen-data" data-step="2">
-      <h1 class="screen-title">Escolha a data</h1>
-      <p class="screen-sub"><strong id="selectedServiceLabel">—</strong></p>
-
-      <div class="date-list" id="dateList"><!-- gerado via JS --></div>
-    </section>
-
-    <!-- TELA 3 — HORÁRIO -->
-    <section class="screen" id="screen-horario" data-step="3">
-      <h1 class="screen-title">Escolha o horário</h1>
-      <p class="screen-sub" id="dateLabel">—</p>
-
-      <div class="next-slot" id="nextSlot" hidden>
-        <span class="next-slot-dot"></span>
-        <span class="next-slot-text">
-          Próximo horário disponível: <strong id="nextSlotValue">—</strong>
-        </span>
-      </div>
-
-      <div class="time-grid" id="timeGrid"></div>
-    </section>
-
-    <!-- TELA 4 — DADOS DO CLIENTE -->
-    <section class="screen" id="screen-dados" data-step="4">
-      <h1 class="screen-title">Seu nome</h1>
-      <p class="screen-sub">Só o essencial, nada mais</p>
-
-      <form id="formDados" class="form-dados" novalidate>
-        <div class="field">
-          <label for="nomeCliente">Nome *</label>
-          <input type="text" id="nomeCliente" placeholder="Como podemos te chamar?" autocomplete="name">
-          <span class="field-error" id="err-nomeCliente"></span>
+      <!-- Serviços -->
+      <section class="screen is-active" id="tela-servico">
+        <div class="brand">
+          <div class="brand-icon"><i class="fa-solid fa-scissors"></i></div>
+          <p>Barbearia<strong>Elite</strong></p>
         </div>
 
-        <div class="field">
-          <label for="telefoneCliente">WhatsApp *</label>
-          <input type="tel" id="telefoneCliente" placeholder="(11) 99999-9999" autocomplete="tel">
-          <span class="field-error" id="err-telefoneCliente"></span>
+        <h1>Escolha o serviço</h1>
+        <p class="subtitle">Toque em um card para continuar</p>
+
+        <div class="card-list" id="serviceList">
+          <button type="button" class="card-option" data-servico="Corte Masculino" data-preco="45" data-tempo="1 hora">
+            <span class="card-icon">✂️</span>
+            <span class="card-text">
+              <strong>Corte Masculino</strong>
+              <small>R$45 · 1 hora</small>
+            </span>
+            <i class="fa-solid fa-chevron-right"></i>
+          </button>
+
+          <button type="button" class="card-option" data-servico="Barba" data-preco="35" data-tempo="30 minutos">
+            <span class="card-icon">🧔</span>
+            <span class="card-text">
+              <strong>Barba</strong>
+              <small>R$35 · 30 minutos</small>
+            </span>
+            <i class="fa-solid fa-chevron-right"></i>
+          </button>
+
+          <button type="button" class="card-option" data-servico="Corte + Barba" data-preco="70" data-tempo="1h30">
+            <span class="card-icon">💈</span>
+            <span class="card-text">
+              <strong>Corte + Barba</strong>
+              <small>R$70 · 1h30</small>
+            </span>
+            <i class="fa-solid fa-chevron-right"></i>
+          </button>
+
+          <button type="button" class="card-option" data-servico="Corte + Sobrancelha" data-preco="55" data-tempo="1h30">
+            <span class="card-icon">✂️</span>
+            <span class="card-text">
+              <strong>Corte + Sobrancelha</strong>
+              <small>R$55 · 1h30</small>
+            </span>
+            <i class="fa-solid fa-chevron-right"></i>
+          </button>
+
+          <button type="button" class="card-option" data-servico="Corte + Barba + Sobrancelha" data-preco="80" data-tempo="2 horas">
+            <span class="card-icon">💈</span>
+            <span class="card-text">
+              <strong>Corte + Barba + Sobrancelha</strong>
+              <small>R$80 · 2 horas</small>
+            </span>
+            <i class="fa-solid fa-chevron-right"></i>
+          </button>
+        </div>
+      </section>
+
+      <!-- Calendário -->
+      <section class="screen" id="tela-data">
+        <h1>Escolha a data</h1>
+        <p class="subtitle" id="dataSubtitle">—</p>
+
+        <div class="date-list" id="dateList"></div>
+      </section>
+
+      <!-- Horários -->
+      <section class="screen" id="tela-horario">
+        <h1>Escolha o horário</h1>
+        <p class="subtitle" id="horarioSubtitle">—</p>
+
+        <div class="time-grid" id="timeGrid"></div>
+      </section>
+
+      <!-- Dados do Cliente -->
+      <section class="screen" id="tela-dados">
+        <h1>Seus dados</h1>
+        <p class="subtitle">Só o essencial, nada mais</p>
+
+        <form id="formDados" novalidate>
+          <div class="field">
+            <label for="nome">Nome</label>
+            <input type="text" id="nome" placeholder="Como podemos te chamar?" autocomplete="name">
+            <span class="field-error" id="erroNome"></span>
+          </div>
+
+          <div class="field">
+            <label for="whatsapp">WhatsApp</label>
+            <input type="tel" id="whatsapp" placeholder="(11) 99999-9999" autocomplete="tel">
+            <span class="field-error" id="erroWhatsapp"></span>
+          </div>
+
+          <fieldset class="field">
+            <legend>Tipo de cliente</legend>
+            <div class="radio-group">
+              <label class="radio-card">
+                <input type="radio" name="tipoCliente" value="Cliente Avulso">
+                <span class="radio-dot"></span>
+                Cliente Avulso
+              </label>
+              <label class="radio-card">
+                <input type="radio" name="tipoCliente" value="Mensalista">
+                <span class="radio-dot"></span>
+                Mensalista
+              </label>
+            </div>
+            <span class="field-error" id="erroTipoCliente"></span>
+          </fieldset>
+
+          <button type="submit" class="btn btn-primary">Continuar</button>
+        </form>
+      </section>
+
+      <!-- Resumo -->
+      <section class="screen" id="tela-resumo">
+        <h1>Confira e confirme</h1>
+        <p class="subtitle">Revise os dados do seu agendamento</p>
+
+        <dl class="summary-card" id="summaryCard"></dl>
+
+        <button type="button" class="btn btn-primary" id="btnParaPagamento">Escolher pagamento</button>
+        <button type="button" class="btn btn-ghost" id="btnEditar">Editar</button>
+      </section>
+
+      <!-- Pagamento -->
+      <section class="screen" id="tela-pagamento">
+        <h1>Forma de pagamento</h1>
+        <p class="subtitle">Escolha como prefere pagar</p>
+
+        <div class="radio-group radio-group--stacked">
+          <label class="radio-card">
+            <input type="radio" name="pagamento" value="PIX">
+            <span class="radio-dot"></span>
+            <span class="card-text">
+              <strong>PIX</strong>
+              <small>Confirmação na hora</small>
+            </span>
+          </label>
+          <label class="radio-card">
+            <input type="radio" name="pagamento" value="Cartão">
+            <span class="radio-dot"></span>
+            <span class="card-text">
+              <strong>Cartão</strong>
+              <small>Em breve</small>
+            </span>
+          </label>
+          <label class="radio-card">
+            <input type="radio" name="pagamento" value="Pagar depois">
+            <span class="radio-dot"></span>
+            <span class="card-text">
+              <strong>Pagar depois</strong>
+              <small>Direto na barbearia</small>
+            </span>
+          </label>
         </div>
 
-        <button type="submit" class="btn-primary btn-block">Continuar</button>
-      </form>
-    </section>
+        <div class="pix-panel" id="pixPanel" hidden>
+          <div class="pix-qr" aria-hidden="true"><i class="fa-solid fa-qrcode"></i></div>
+          <p class="pix-hint">QR Code ilustrativo</p>
 
-    <!-- TELA 5 — TIPO DE CLIENTE -->
-    <section class="screen" id="screen-plano" data-step="5">
-      <h1 class="screen-title">Você possui plano mensal?</h1>
-      <p class="screen-sub">Isso nos ajuda a te atender melhor</p>
+          <div class="pix-key">
+            <span id="pixKeyValue">contato@barbeariaelite.com.br</span>
+            <button type="button" id="btnCopiarPix">Copiar chave</button>
+          </div>
 
-      <div class="option-list">
-        <button type="button" class="plano-card" id="btnPlanoSim" data-plano="Mensalista">
-          <span class="plano-radio"></span>
-          <span class="option-info">
-            <span class="option-name">Sim</span>
-            <span class="option-meta">Sou cliente mensalista</span>
-          </span>
-        </button>
-
-        <button type="button" class="plano-card" id="btnPlanoNao" data-plano="Cliente Avulso">
-          <span class="plano-radio"></span>
-          <span class="option-info">
-            <span class="option-name">Não</span>
-            <span class="option-meta">Cliente avulso</span>
-          </span>
-        </button>
-      </div>
-    </section>
-
-    <!-- TELA 6 — GARANTIR HORÁRIO (decisão de pagamento) -->
-    <section class="screen" id="screen-pagamento" data-step="6">
-      <h1 class="screen-title">Deseja garantir seu horário agora?</h1>
-      <p class="screen-sub">Reservas com sinal pago têm prioridade</p>
-
-      <div class="option-list">
-        <button type="button" class="plano-card" id="btnPagarSinal" data-tipo="sinal">
-          <span class="plano-radio"></span>
-          <span class="option-info">
-            <span class="option-name">Pagar Sinal</span>
-            <span class="option-meta" id="valorSinalPreview">10% do serviço via PIX</span>
-          </span>
-        </button>
-
-        <button type="button" class="plano-card" id="btnPagarTotal" data-tipo="total">
-          <span class="plano-radio"></span>
-          <span class="option-info">
-            <span class="option-name">Pagar Valor Total</span>
-            <span class="option-meta" id="valorTotalPreview">Via PIX</span>
-          </span>
-        </button>
-
-        <button type="button" class="plano-card" id="btnPagarDepois" data-tipo="depois">
-          <span class="plano-radio"></span>
-          <span class="option-info">
-            <span class="option-name">Pagar Depois</span>
-            <span class="option-meta">Pago direto na barbearia</span>
-          </span>
-        </button>
-      </div>
-    </section>
-
-    <!-- TELA 7 — FORMA DE PAGAMENTO (apenas se sinal ou total) -->
-    <section class="screen" id="screen-metodo" data-step="7">
-      <h1 class="screen-title">Forma de pagamento</h1>
-      <p class="screen-sub">Total a pagar agora: <strong id="valorMetodoLabel">—</strong></p>
-
-      <div class="option-list">
-        <button type="button" class="option-card" id="btnMetodoPix">
-          <span class="option-emoji"><i class="fa-solid fa-qrcode"></i></span>
-          <span class="option-info">
-            <span class="option-name">PIX</span>
-            <span class="option-meta">Confirmação na hora</span>
-          </span>
-          <i class="fa-solid fa-chevron-right option-arrow"></i>
-        </button>
-
-        <button type="button" class="option-card" id="btnMetodoCartao">
-          <span class="option-emoji"><i class="fa-solid fa-credit-card"></i></span>
-          <span class="option-info">
-            <span class="option-name">Cartão de Crédito</span>
-            <span class="option-meta">Em breve</span>
-          </span>
-          <i class="fa-solid fa-chevron-right option-arrow"></i>
-        </button>
-      </div>
-    </section>
-
-    <!-- TELA 8 — PAGAMENTO PIX -->
-    <section class="screen" id="screen-pix" data-step="8">
-      <h1 class="screen-title">Pagamento via PIX</h1>
-      <p class="screen-sub">Valor: <strong id="valorPixLabel">—</strong></p>
-
-      <div class="pix-card">
-        <div class="pix-qr" aria-hidden="true">
-          <i class="fa-solid fa-qrcode"></i>
+          <p class="pix-hint">Após realizar o pagamento, envie o comprovante pelo WhatsApp.</p>
         </div>
-        <p class="pix-hint">Aponte a câmera do seu banco para o QR Code</p>
 
-        <div class="pix-chave">
-          <span id="pixChaveValor">contato@barbeariaelite.com.br</span>
-          <button type="button" class="pix-copiar" id="btnCopiarPix">Copiar chave</button>
+        <button type="button" class="btn btn-primary" id="btnConfirmar" disabled>Confirmar Agendamento</button>
+      </section>
+
+      <!-- Tela de Sucesso -->
+      <section class="screen" id="tela-sucesso">
+        <div class="success-icon" aria-hidden="true">
+          <svg viewBox="0 0 60 60">
+            <circle cx="30" cy="30" r="27"/>
+            <path d="M17 31 L26 40 L44 20"/>
+          </svg>
         </div>
-      </div>
 
-      <p class="pix-aviso">Após o pagamento, envie o comprovante para confirmar seu horário.</p>
+        <h1 class="center">Agendamento realizado</h1>
+        <p class="subtitle center">Envie a mensagem para garantir seu horário.</p>
 
-      <button type="button" class="btn-primary btn-block" id="btnPagamentoRealizado">Já paguei</button>
-    </section>
+        <a href="#" id="btnWhatsapp" target="_blank" rel="noopener" class="btn btn-whatsapp">
+          <i class="fa-brands fa-whatsapp"></i> Abrir WhatsApp
+        </a>
+        <button type="button" class="btn btn-ghost" id="btnNovoAgendamento">Novo agendamento</button>
+      </section>
 
-    <!-- TELA 9 — RESUMO -->
-    <section class="screen" id="screen-resumo" data-step="9">
-      <h1 class="screen-title">Confira e confirme</h1>
-      <p class="screen-sub">Revise os dados do seu agendamento</p>
+    </main>
 
-      <div class="summary-card" id="summaryCard"><!-- gerado via JS --></div>
+    <p class="toast" id="toast" role="alert"></p>
+  </div>
 
-      <button type="button" class="btn-primary btn-block" id="btnConfirmarFinal">Confirmar</button>
-      <button type="button" class="btn-ghost btn-block" id="btnEditar">Editar</button>
-    </section>
-
-    <!-- TELA 10 — SUCESSO -->
-    <section class="screen" id="screen-sucesso" data-step="10">
-      <div class="success-check" aria-hidden="true">
-        <svg viewBox="0 0 60 60">
-          <circle class="success-circle" cx="30" cy="30" r="27"/>
-          <path class="success-tick" d="M17 31 L26 40 L44 20"/>
-        </svg>
-      </div>
-
-      <h1 class="screen-title center">Agendamento confirmado</h1>
-      <p class="screen-sub center">Envie a mensagem para garantir seu horário com a gente.</p>
-
-      <a href="#" id="btnWhats" target="_blank" rel="noopener" class="btn-whatsapp btn-block">
-        <i class="fa-brands fa-whatsapp"></i> Abrir WhatsApp
-      </a>
-      <button type="button" class="btn-ghost btn-block" id="btnNovo">Novo agendamento</button>
-    </section>
-
-  </main>
-
-  <!-- ---------- TOAST DE ERRO/AVISO ---------- -->
-  <div class="toast" id="toast"></div>
-</div>
-
-<script src="script.js"></script>
+  <script src="script.js"></script>
 </body>
 </html>

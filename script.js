@@ -31,7 +31,7 @@ const HORARIOS = [
 
 const ALMOCO_INICIO = horaParaMinutos('13:00');
 const ALMOCO_FIM = horaParaMinutos('14:00');
-const FECHAMENTO = horaParaMinutos('21:00');
+const FECHAMENTO = horaParaMinutos('22:00');
 
 // telas que entram na barra de progresso — pagamento e sucesso ficam de fora
 const ETAPAS = ['tela-servico', 'tela-data', 'tela-horario', 'tela-dados', 'tela-resumo'];

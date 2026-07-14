@@ -21,6 +21,7 @@ testarBanco();
 
 // Estado da aplicação
 const state = {
+  clienteId: null,
   servico: null,
   preco: null,
   tempo: null,
@@ -375,7 +376,7 @@ formDados.addEventListener('submit', async event => {
 
 
   console.log("Cliente salvo:", data);
-
+  state.clienteId = data[0].id;
 
   gerarResumo();
   irPara('tela-resumo');
@@ -480,15 +481,35 @@ function gerarMensagemWhatsApp() {
   ].join('\n');
 }
 
-btnConfirmar.addEventListener('click', () => {
+btnConfirmar.addEventListener('click', async () => {
+
+  const { error } = await supabaseClient
+    .from("agendamentos")
+    .insert([
+      {
+        cliente_id: state.clienteId,
+        servico: state.servico,
+        data: state.data,
+        horario: state.horario
+      }
+    ]);
+
+  if (error) {
+    console.log("Erro ao salvar agendamento:", error);
+    mostrarToast("Erro ao salvar agendamento");
+    return;
+  }
+
+  console.log("Agendamento salvo!");
+
   const mensagem = gerarMensagemWhatsApp();
   const url = `https://wa.me/${WHATSAPP_NUMERO}?text=${encodeURIComponent(mensagem)}`;
 
   document.getElementById('btnWhatsapp').href = url;
   irPara('tela-sucesso');
   window.open(url, '_blank', 'noopener');
-});
 
+}); 
 // Supabase — clientes e agendamentos
 // preparado para a próxima etapa: ainda não é chamado pelo fluxo de confirmação acima
 

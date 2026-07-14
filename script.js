@@ -342,8 +342,9 @@ function exibirErros(erros) {
   document.getElementById('erroTipoCliente').textContent = erros.tipoCliente || '';
 }
 
-formDados.addEventListener('submit', event => {
+formDados.addEventListener('submit', async event => {
   event.preventDefault();
+
   const erros = validarFormulario();
   exibirErros(erros);
 
@@ -352,6 +353,29 @@ formDados.addEventListener('submit', event => {
   state.nome = campoNome.value.trim();
   state.whatsapp = campoWhatsapp.value.trim();
   state.tipoCliente = formDados.querySelector('[name="tipoCliente"]:checked').value;
+
+
+  const { data, error } = await supabaseClient
+    .from("clientes")
+    .insert([
+      {
+        nome: state.nome,
+        telefone: state.whatsapp,
+        tipo_cliente: state.tipoCliente
+      }
+    ])
+    .select();
+
+
+  if (error) {
+    console.log("Erro ao salvar cliente:", error);
+    mostrarToast("Erro ao salvar cliente");
+    return;
+  }
+
+
+  console.log("Cliente salvo:", data);
+
 
   gerarResumo();
   irPara('tela-resumo');
@@ -549,5 +573,15 @@ function mostrarToast(mensagem) {
   toast.classList.add('is-visible');
   setTimeout(() => toast.classList.remove('is-visible'), 3000);
 }
+async function testarBanco() {
+  const { data, error } = await supabaseClient
+    .from("clientes")
+    .select("*");
+
+  console.log("Dados do banco:", data);
+  console.log("Erro:", error);
+}
+
+testarBanco();
 
 atualizarTopbar('tela-servico');

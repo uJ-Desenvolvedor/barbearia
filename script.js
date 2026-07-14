@@ -360,7 +360,7 @@ formDados.addEventListener('submit', async event => {
     .insert([
       {
         nome: state.nome,
-        whatsapp: state.whatsapp,
+        telefone: state.whatsapp,
         tipo_cliente: state.tipoCliente
       }
     ])

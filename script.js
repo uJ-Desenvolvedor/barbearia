@@ -491,5 +491,42 @@ function mostrarToast(mensagem) {
   toast.classList.add('is-visible');
   setTimeout(() => toast.classList.remove('is-visible'), 3000);
 }
+// ===============================
+// CONFIGURAÇÃO SUPABASE
+// ===============================
+
+const SUPABASE_URL = "https://ppmhkjxhqtldaimlwjbx.supabase.co";
+
+const SUPABASE_KEY = "sb_publishable_V7wts_Jpiq6RgaDbjaBPrg_zUgwqfo1";
+
+
+const supabase = window.supabase.createClient(
+    SUPABASE_URL,
+    SUPABASE_KEY
+);
+
+
+// ===============================
+// TESTE DE CONEXÃO
+// ===============================
+
+async function testarBanco() {
+
+    const { data, error } = await supabase
+        .from("clientes")
+        .select("*");
+
+
+    console.log("Dados recebidos do Supabase:");
+    console.log(data);
+
+
+    console.log("Erro:");
+    console.log(error);
+
+}
+
+
+testarBanco();
 
 atualizarTopbar('tela-servico');

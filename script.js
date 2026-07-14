@@ -1,3 +1,24 @@
+// Supabase
+const SUPABASE_URL = "https://ppmhkjxhqtldaimlwjbx.supabase.co";
+const SUPABASE_KEY = "sb_publishable_V7wts_Jpiq6RgaDbjaBPrg_zUgwqfo1";
+
+const supabaseClient = window.supabase.createClient(
+    SUPABASE_URL,
+    SUPABASE_KEY
+);
+
+// função apenas para confirmar a conexão — pode ser removida depois do teste
+async function testarBanco() {
+  const { data, error } = await supabaseClient
+    .from('clientes')
+    .select('*');
+
+  console.log(data);
+  console.log(error);
+}
+
+testarBanco();
+
 // Estado da aplicação
 const state = {
   servico: null,
@@ -14,32 +35,24 @@ const state = {
   tipoCliente: null,
   pagamento: null
 };
-const SUPABASE_URL = "https://ppmhkjxhqtldaimlwjbx.supabase.co";
 
-const SUPABASE_KEY = "SUA_CHAVE_AQUI";
-
-
-const supabaseClient = window.supabase.createClient(
-    SUPABASE_URL,
-    SUPABASE_KEY
-);
 let historico = ['tela-servico'];
 
 // Configurações
-const WHATSAPP_NUMERO = '5511951761392';
-const PIX_CHAVE = 'contato@garagemdogueto.com.br';
+const WHATSAPP_NUMERO = '5511999999999';
+const PIX_CHAVE = 'contato@barbeariaelite.com.br';
 
 const DIAS_FECHADOS = [0, 1]; // domingo e segunda
 const DIAS_SEMANA = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'];
 const HORARIOS = [
   '08:00', '08:30', '09:00', '09:30', '10:00', '10:30', '11:00', '11:30', '12:00', '12:30',
   '13:00', '13:30', '14:00', '14:30', '15:00', '15:30', '16:00', '16:30', '17:00', '17:30',
-  '18:00', '18:30', '19:00', '19:30', '20:00' , '20:30', '21:00', '21:30'
+  '18:00', '18:30', '19:00', '19:30', '20:00'
 ];
 
 const ALMOCO_INICIO = horaParaMinutos('13:00');
 const ALMOCO_FIM = horaParaMinutos('14:00');
-const FECHAMENTO = horaParaMinutos('22:00');
+const FECHAMENTO = horaParaMinutos('21:00');
 
 // telas que entram na barra de progresso — pagamento e sucesso ficam de fora
 const ETAPAS = ['tela-servico', 'tela-data', 'tela-horario', 'tela-dados', 'tela-resumo'];
@@ -126,29 +139,8 @@ function selecionarServico(botao) {
 
   state.servico = botao.dataset.servico;
   state.preco = Number(botao.dataset.preco);
-state.tempo = botao.dataset.tempo;
-
-switch (state.servico) {
-  case 'Corte Masculino':
-    state.duracaoMinutos = 60;
-    break;
-
-  case 'Barba':
-    state.duracaoMinutos = 30;
-    break;
-
-  case 'Corte + Barba':
-    state.duracaoMinutos = 90;
-    break;
-
-  case 'Corte + Sobrancelha':
-    state.duracaoMinutos = 90;
-    break;
-
-  case 'Corte + Barba + Sobrancelha':
-    state.duracaoMinutos = 120;
-    break;
-}
+  state.tempo = botao.dataset.tempo;
+  state.duracaoMinutos = Number(botao.dataset.duracao);
 
   carregarDatas();
   irPara('tela-data');
@@ -473,6 +465,64 @@ btnConfirmar.addEventListener('click', () => {
   window.open(url, '_blank', 'noopener');
 });
 
+// Supabase — clientes e agendamentos
+// preparado para a próxima etapa: ainda não é chamado pelo fluxo de confirmação acima
+
+// busca o cliente pelo whatsapp e cria um novo caso não exista
+async function buscarOuCriarCliente(nome, whatsapp, tipoCliente) {
+  const { data: existente, error: erroBusca } = await supabaseClient
+    .from('clientes')
+    .select('id')
+    .eq('whatsapp', whatsapp)
+    .maybeSingle();
+
+  if (erroBusca) return { erro: erroBusca };
+  if (existente) return { id: existente.id };
+
+  const { data: novoCliente, error: erroCriacao } = await supabaseClient
+    .from('clientes')
+    .insert({ nome, whatsapp, tipo_cliente: tipoCliente })
+    .select('id')
+    .single();
+
+  if (erroCriacao) return { erro: erroCriacao };
+  return { id: novoCliente.id };
+}
+
+async function salvarAgendamento(clienteId) {
+  const { data, error } = await supabaseClient
+    .from('agendamentos')
+    .insert({
+      cliente_id: clienteId,
+      data: state.data,
+      horario: state.horario,
+      servico: state.servico,
+      duracao: state.duracaoMinutos,
+      status: 'confirmado'
+    });
+
+  return { data, error };
+}
+
+// vincula um horário fixo semanal ao cliente mensalista
+async function criarMensalista(clienteId, diaSemana, horario) {
+  const { data, error } = await supabaseClient
+    .from('mensalistas')
+    .insert({ cliente_id: clienteId, dia_semana: diaSemana, horario, ativo: true });
+
+  return { data, error };
+}
+
+// libera o horário fixo ao desativar o mensalista, sem apagar o histórico
+async function cancelarMensalista(mensalistaId) {
+  const { data, error } = await supabaseClient
+    .from('mensalistas')
+    .update({ ativo: false })
+    .eq('id', mensalistaId);
+
+  return { data, error };
+}
+
 document.getElementById('btnNovoAgendamento').addEventListener('click', reiniciarFluxo);
 
 function reiniciarFluxo() {
@@ -499,33 +549,5 @@ function mostrarToast(mensagem) {
   toast.classList.add('is-visible');
   setTimeout(() => toast.classList.remove('is-visible'), 3000);
 }
-// CONFIGURAÇÃO SUPABASE
-  
-  const supabaseClient = window.supabase.createClient(
-    SUPABASE_URL,
-    SUPABASE_KEY
-);
-
-// TESTE DE CONEXÃO
-
-
-async function testarBanco() {
-
-    const { data, error } = await supabase
-        .from("clientes")
-        .select("*");
-
-
-    console.log("Dados recebidos do Supabase:");
-    console.log(data);
-
-
-    console.log("Erro:");
-    console.log(error);
-
-}
-
-
-testarBanco();
 
 atualizarTopbar('tela-servico');

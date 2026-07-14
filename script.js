@@ -360,7 +360,7 @@ formDados.addEventListener('submit', async event => {
     .insert([
       {
         nome: state.nome,
-        telefone: state.whatsapp,
+        whatsapp: state.whatsapp,
         tipo_cliente: state.tipoCliente
       }
     ])
@@ -573,15 +573,5 @@ function mostrarToast(mensagem) {
   toast.classList.add('is-visible');
   setTimeout(() => toast.classList.remove('is-visible'), 3000);
 }
-async function testarBanco() {
-  const { data, error } = await supabaseClient
-    .from("clientes")
-    .select("*");
-
-  console.log("Dados do banco:", data);
-  console.log("Erro:", error);
-}
-
-testarBanco();
 
 atualizarTopbar('tela-servico');

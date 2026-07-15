@@ -14,10 +14,16 @@ const listaAgendamentos = document.getElementById("listaAgendamentos");
 async function carregarAgendamentos() {
 
     const { data, error } = await supabaseClient
-        .from("agendamentos")
-        .select("*")
-        .order("data", { ascending: true });
-
+    .from("agendamentos")
+    .select(`
+        *,
+        clientes (
+            nome,
+            telefone,
+            tipo_cliente
+        )
+    `)
+    .order("data", { ascending: true });
 
     if (error) {
         console.log("Erro ao buscar agendamentos:", error);

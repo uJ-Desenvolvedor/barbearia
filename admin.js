@@ -39,30 +39,51 @@ async function carregarAgendamentos() {
 
   listaAgendamentos.innerHTML = data
     .map((agendamento) => {
-      return `
-        <div class="card-option">
-<strong>${agendamento.clientes.nome}</strong>
+return `
+<div class="card-option">
 
-<p>
-📞 ${agendamento.clientes.telefone}
-</p>
+    <strong>${agendamento.clientes.nome}</strong>
 
-<p>
-✂️ ${agendamento.servico}
-</p>
+    <p>📞 ${agendamento.clientes.telefone}</p>
 
-<p>
-📅 ${agendamento.data}
-</p>
+    <p>✂️ ${agendamento.servico}</p>
 
-<p>
-⏰ ${agendamento.horario}
-</p>
+    <p>📅 ${agendamento.data}</p>
 
-        </div>
-        `;
+    <p>⏰ ${agendamento.horario}</p>
+
+    <button
+        class="btn-cancelar"
+        onclick="cancelarAgendamento(${agendamento.id})">
+        ❌ Cancelar
+    </button>
+
+</div>
+`;
     })
     .join("");
 }
 
 carregarAgendamentos();
+async function cancelarAgendamento(id) {
+
+    const confirmar = confirm("Deseja realmente cancelar este agendamento?");
+
+    if (!confirmar) return;
+
+    const { error } = await supabaseClient
+        .from("agendamentos")
+        .delete()
+        .eq("id", id);
+
+    if (error) {
+        console.log(error);
+        alert("Erro ao cancelar.");
+        return;
+    }
+
+    alert("Agendamento cancelado!");
+
+    carregarAgendamentos();
+
+}

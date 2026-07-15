@@ -36,27 +36,78 @@ async function carregarAgendamentos() {
         `;
     return;
   }
+  document.getElementById("contadorAgendamentos").textContent =
+    `${data.length} agendamento(s) encontrado(s)`;
 
   listaAgendamentos.innerHTML = data
     .map((agendamento) => {
-return `
-<div class="card-option">
+      const seloMensalista =
+        agendamento.clientes.tipo_cliente === "mensalista"
+          ? `<span class="badge-mensalista">⭐ Mensalista</span>`
+          : "";
 
-    <strong>${agendamento.clientes.nome}</strong>
+      const status = agendamento.status || "Pendente";
 
-    <p>📞 ${agendamento.clientes.telefone}</p>
+      const statusHTML =
+        status === "Confirmado"
+          ? `<span class="status-confirmado">🟢 Confirmado</span>`
+          : status === "Cancelado"
+            ? `<span class="status-cancelado">🔴 Cancelado</span>`
+            : `<span class="status-pendente">🟡 Pendente</span>`;
 
-    <p>✂️ ${agendamento.servico}</p>
+      return `
+      
+<div class="card-admin">
 
-    <p>📅 ${agendamento.data}</p>
+    <div class="card-header">
 
-    <p>⏰ ${agendamento.horario}</p>
+        <div>
+            <h3>👤 ${agendamento.clientes.nome}</h3>
 
-    <button
-        class="btn-cancelar"
-        onclick="cancelarAgendamento(${agendamento.id})">
-        ❌ Cancelar
-    </button>
+            ${seloMensalista}
+        </div>
+
+        <div class="horario">
+            🕒 ${agendamento.horario}
+        </div>
+
+    </div>
+
+    <div class="info">
+
+        <div class="info-item">
+            📞 ${agendamento.clientes.telefone}
+        </div>
+
+        <div class="info-item">
+            💈 ${agendamento.servico}
+        </div>
+
+        <div class="info-item">
+            📅 ${formatarData(agendamento.data)}
+        </div>
+
+    </div>
+
+<div class="status">
+    ${statusHTML}
+</div>
+
+    <div class="botoes">
+
+       <button
+    class="btn-confirmar"
+    onclick="confirmarAgendamento(${agendamento.id})">
+    ✔ Confirmar
+</button>
+
+        <button
+            class="btn-cancelar"
+            onclick="cancelarAgendamento(${agendamento.id})">
+            ❌ Cancelar
+        </button>
+
+    </div>
 
 </div>
 `;
@@ -65,6 +116,27 @@ return `
 }
 
 carregarAgendamentos();
+async function confirmarAgendamento(id) {
+  const { data, error } = await supabaseClient
+    .from("agendamentos")
+    .update({
+      status: "Confirmado",
+    })
+    .eq("id", id)
+    .select();
+
+  console.log("DATA:", data);
+  console.log("ERROR:", error);
+
+  if (error) {
+    alert("Erro ao confirmar!");
+    return;
+  }
+
+  alert("Agendamento confirmado!");
+
+  carregarAgendamentos();
+}
 async function cancelarAgendamento(id) {
 
     const confirmar = confirm("Deseja realmente cancelar este agendamento?");
@@ -73,7 +145,9 @@ async function cancelarAgendamento(id) {
 
     const { error } = await supabaseClient
         .from("agendamentos")
-        .delete()
+        .update({
+            status: "Cancelado"
+        })
         .eq("id", id);
 
     if (error) {
@@ -86,4 +160,9 @@ async function cancelarAgendamento(id) {
 
     carregarAgendamentos();
 
+}
+function formatarData(data) {
+  const [ano, mes, dia] = data.split("-");
+
+  return `${dia}/${mes}/${ano}`;
 }

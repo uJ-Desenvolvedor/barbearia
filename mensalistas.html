@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Mensalistas</title>
+    <a href="mensalistas.html" class="btn-admin"> ⭐ Mensalistas </a>
+
+    <link rel="stylesheet" href="style.css" />
+    <link rel="stylesheet" href="admin.css" />
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  </head>
+
+  <body>
+    <div class="app">
+      <header class="topbar">
+        <h2>⭐ Mensalistas</h2>
+        <p>Cadastrar cliente mensal</p>
+      </header>
+
+      <main>
+        <input id="nome" type="text" placeholder="Nome do cliente" />
+
+        <input id="telefone" type="text" placeholder="Telefone" />
+
+        <select id="servico">
+          <option>Corte</option>
+          <option>Barba</option>
+          <option>Corte + Barba</option>
+        </select>
+
+        <select id="dia">
+          <option>Segunda</option>
+          <option>Terça</option>
+          <option>Quarta</option>
+          <option>Quinta</option>
+          <option>Sexta</option>
+          <option>Sábado</option>
+        </select>
+
+        <input id="horario" type="time" />
+
+        <button id="btnSalvar">Salvar Mensalista</button>
+      </main>
+    </div>
+
+    <script src="mensalistas.js"></script>
+  </body>
+</html>

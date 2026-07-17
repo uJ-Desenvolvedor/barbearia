@@ -294,26 +294,32 @@ function estaNoHorarioAlmoco(minutos) {
 }
 
 // simulação de ocupação — no futuro isso vem de uma consulta ao banco
+let horariosOcupados = [];
+
 async function buscarHorariosOcupados(data) {
-  const { data: agendamentos, error } = await supabaseClient
+
+  const { data: agendamentos } = await supabaseClient
     .from("agendamentos")
     .select("horario")
     .eq("data", data);
 
-  if (error) {
-    console.log("Erro ao buscar horários:", error);
-    return [];
-  }
+  const dias = ["Domingo","Segunda","Terça","Quarta","Quinta","Sexta","Sábado"];
 
-  return agendamentos.map((item) => item.horario);
-}
-function horarioOcupado(data, horario) {
-  const soma = (data + horario)
-    .split("")
-    .reduce((total, char) => total + char.charCodeAt(0), 0);
-  return soma % 100 < 30;
-}
+  const [ano, mes, dia] = data.split("-").map(Number);
+  const diaSemana = dias[new Date(ano, mes - 1, dia).getDay()];
 
+  const { data: mensalistas } = await supabaseClient
+    .from("mensalistas")
+    .select("horario")
+    .eq("dia_semana", diaSemana)
+    .eq("ativo", true);
+
+  horariosOcupados = [
+    ...(agendamentos || []).map(item => item.horario),
+    ...(mensalistas || []).map(item => item.horario)
+  ];
+
+}
 // verifica se o intervalo inteiro do serviço está livre, considerando ocupação e almoço
 function intervaloDisponivel(data, horarioInicio, duracaoMinutos) {
   const inicio = horaParaMinutos(horarioInicio);
@@ -338,7 +344,7 @@ async function carregarHorarios(data, ehHoje) {
   state.horario = null;
   document.getElementById("horarioSubtitle").textContent =
     `${state.servico} · ${state.dataLabel}`;
-  const horariosOcupados = await buscarHorariosOcupados(data);
+ await buscarHorariosOcupados(data);
   const agora = new Date();
   const minutoAtual = agora.getHours() * 60 + agora.getMinutes();
 
@@ -346,14 +352,11 @@ async function carregarHorarios(data, ehHoje) {
     const minutoHorario = horaParaMinutos(horario);
     const almoco = estaNoHorarioAlmoco(minutoHorario);
     const jaPassou = ehHoje && minutoHorario < minutoAtual + 30;
-    const ocupado = horariosOcupados.includes(horario);
+    const ocupado = horarioOcupado(data, horario);
     const indisponivel =
       jaPassou ||
       almoco ||
       ocupado ||
-      !intervaloDisponivel(data, horario, state.duracaoMinutos);
-    !intervaloDisponivel(data, horario, state.duracaoMinutos);
-
     timeGrid.appendChild(criarBotaoHorario(horario, indisponivel, almoco));
   });
 }

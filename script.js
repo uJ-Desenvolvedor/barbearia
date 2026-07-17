@@ -296,18 +296,31 @@ function estaNoHorarioAlmoco(minutos) {
 // simulação de ocupação — no futuro isso vem de uma consulta ao banco
 let horariosOcupados = [];
 
+let horariosOcupados = [];
+
 async function buscarHorariosOcupados(data) {
 
+  // Agendamentos do dia
   const { data: agendamentos } = await supabaseClient
     .from("agendamentos")
     .select("horario")
     .eq("data", data);
 
-  const dias = ["Domingo","Segunda","Terça","Quarta","Quinta","Sexta","Sábado"];
+  // Descobre o dia da semana da data
+  const dias = [
+    "Domingo",
+    "Segunda",
+    "Terça",
+    "Quarta",
+    "Quinta",
+    "Sexta",
+    "Sábado"
+  ];
 
   const [ano, mes, dia] = data.split("-").map(Number);
   const diaSemana = dias[new Date(ano, mes - 1, dia).getDay()];
 
+  // Busca mensalistas daquele dia
   const { data: mensalistas } = await supabaseClient
     .from("mensalistas")
     .select("horario")
@@ -315,10 +328,17 @@ async function buscarHorariosOcupados(data) {
     .eq("ativo", true);
 
   horariosOcupados = [
-    ...(agendamentos || []).map(item => item.horario),
-    ...(mensalistas || []).map(item => item.horario)
+    ...(agendamentos || []).map(a => a.horario),
+    ...(mensalistas || []).map(m => m.horario)
   ];
 
+  console.log("Dia da semana:", diaSemana);
+  console.log("Mensalistas:", mensalistas);
+  console.log("Horários ocupados:", horariosOcupados);
+}
+
+function horarioOcupado(data, horario) {
+  return horariosOcupados.includes(horario);
 }
 // verifica se o intervalo inteiro do serviço está livre, considerando ocupação e almoço
 function intervaloDisponivel(data, horarioInicio, duracaoMinutos) {
@@ -342,9 +362,12 @@ function intervaloDisponivel(data, horarioInicio, duracaoMinutos) {
 async function carregarHorarios(data, ehHoje) {
   timeGrid.innerHTML = "";
   state.horario = null;
+
   document.getElementById("horarioSubtitle").textContent =
     `${state.servico} · ${state.dataLabel}`;
- await buscarHorariosOcupados(data);
+
+  await buscarHorariosOcupados(data);
+
   const agora = new Date();
   const minutoAtual = agora.getHours() * 60 + agora.getMinutes();
 
@@ -353,14 +376,18 @@ async function carregarHorarios(data, ehHoje) {
     const almoco = estaNoHorarioAlmoco(minutoHorario);
     const jaPassou = ehHoje && minutoHorario < minutoAtual + 30;
     const ocupado = horarioOcupado(data, horario);
+
     const indisponivel =
       jaPassou ||
       almoco ||
       ocupado ||
-    timeGrid.appendChild(criarBotaoHorario(horario, indisponivel, almoco));
+      !intervaloDisponivel(data, horario, state.duracaoMinutos);
+
+    timeGrid.appendChild(
+      criarBotaoHorario(horario, indisponivel, almoco)
+    );
   });
 }
-
 function criarBotaoHorario(horario, indisponivel, almoco) {
   const btn = document.createElement("button");
   btn.type = "button";

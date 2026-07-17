@@ -294,54 +294,14 @@ function estaNoHorarioAlmoco(minutos) {
 }
 
 // simulação de ocupação — no futuro isso vem de uma consulta ao banco
-let horariosOcupados = [];
-
-let horariosOcupados = [];
-
-async function buscarHorariosOcupados(data) {
-  // Agendamentos do dia
-  const { data: agendamentos } = await supabaseClient
-    .from("agendamentos")
-    .select("horario")
-    .eq("data", data);
-
-  // Descobre o dia da semana da data
-  const dias = [
-    "Domingo",
-    "Segunda",
-    "Terça",
-    "Quarta",
-    "Quinta",
-    "Sexta",
-    "Sábado",
-  ];
-
-  const [ano, mes, dia] = data.split("-").map(Number);
-  const diaSemana = dias[new Date(ano, mes - 1, dia).getDay()];
-
-  // Busca mensalistas daquele dia
-  const { data: mensalistas } = await supabaseClient
-    .from("mensalistas")
-    .select("horario")
-    .eq("dia_semana", diaSemana)
-    .eq("ativo", true);
-  console.log("Dia procurado:", diaSemana);
-  console.log("Resultado mensalistas:", mensalistas);
-
-  horariosOcupados = [
-    ...(agendamentos || []).map((a) => a.horario),
-    ...(mensalistas || []).map((m) => m.horario),
-  ];
-
-  console.log("Dia da semana:", diaSemana);
-  console.log("Mensalistas:", mensalistas);
-  console.log("Horários ocupados:", horariosOcupados);
-}
-
 function horarioOcupado(data, horario) {
-  return horariosOcupados.includes(horario);
+  const soma = (data + horario)
+    .split("")
+    .reduce((total, char) => total + char.charCodeAt(0), 0);
+
+  return soma % 100 < 30;
 }
-// verifica se o intervalo inteiro do serviço está livre, considerando ocupação e almoço
+
 function intervaloDisponivel(data, horarioInicio, duracaoMinutos) {
   const inicio = horaParaMinutos(horarioInicio);
   const fim = inicio + duracaoMinutos;
@@ -367,8 +327,6 @@ async function carregarHorarios(data, ehHoje) {
   document.getElementById("horarioSubtitle").textContent =
     `${state.servico} · ${state.dataLabel}`;
 
-  await buscarHorariosOcupados(data);
-
   const agora = new Date();
   const minutoAtual = agora.getHours() * 60 + agora.getMinutes();
 
@@ -377,7 +335,6 @@ async function carregarHorarios(data, ehHoje) {
     const almoco = estaNoHorarioAlmoco(minutoHorario);
     const jaPassou = ehHoje && minutoHorario < minutoAtual + 30;
     const ocupado = horarioOcupado(data, horario);
-    console.log(horario, ocupado);
 
     const indisponivel =
       jaPassou ||

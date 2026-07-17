@@ -236,8 +236,17 @@ function carregarDatas() {
   }
 }
 
+// monta a data no formato ISO (YYYY-MM-DD) usando o horário local,
+// evitando o bug de toISOString() adiantar o dia por causa do fuso (UTC-3)
+function formatarDataISO(dia) {
+  const ano = dia.getFullYear();
+  const mes = String(dia.getMonth() + 1).padStart(2, "0");
+  const diaMes = String(dia.getDate()).padStart(2, "0");
+  return `${ano}-${mes}-${diaMes}`;
+}
+
 function criarBotaoData(dia, offset) {
-  const iso = dia.toISOString().split("T")[0];
+  const iso = formatarDataISO(dia);
   const dataCurta = dia.toLocaleDateString("pt-BR", {
     day: "2-digit",
     month: "2-digit",

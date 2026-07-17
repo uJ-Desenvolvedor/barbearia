@@ -299,7 +299,6 @@ let horariosOcupados = [];
 let horariosOcupados = [];
 
 async function buscarHorariosOcupados(data) {
-
   // Agendamentos do dia
   const { data: agendamentos } = await supabaseClient
     .from("agendamentos")
@@ -314,7 +313,7 @@ async function buscarHorariosOcupados(data) {
     "Quarta",
     "Quinta",
     "Sexta",
-    "Sábado"
+    "Sábado",
   ];
 
   const [ano, mes, dia] = data.split("-").map(Number);
@@ -326,10 +325,12 @@ async function buscarHorariosOcupados(data) {
     .select("horario")
     .eq("dia_semana", diaSemana)
     .eq("ativo", true);
+  console.log("Dia procurado:", diaSemana);
+  console.log("Resultado mensalistas:", mensalistas);
 
   horariosOcupados = [
-    ...(agendamentos || []).map(a => a.horario),
-    ...(mensalistas || []).map(m => m.horario)
+    ...(agendamentos || []).map((a) => a.horario),
+    ...(mensalistas || []).map((m) => m.horario),
   ];
 
   console.log("Dia da semana:", diaSemana);
@@ -376,6 +377,7 @@ async function carregarHorarios(data, ehHoje) {
     const almoco = estaNoHorarioAlmoco(minutoHorario);
     const jaPassou = ehHoje && minutoHorario < minutoAtual + 30;
     const ocupado = horarioOcupado(data, horario);
+    console.log(horario, ocupado);
 
     const indisponivel =
       jaPassou ||
@@ -383,9 +385,7 @@ async function carregarHorarios(data, ehHoje) {
       ocupado ||
       !intervaloDisponivel(data, horario, state.duracaoMinutos);
 
-    timeGrid.appendChild(
-      criarBotaoHorario(horario, indisponivel, almoco)
-    );
+    timeGrid.appendChild(criarBotaoHorario(horario, indisponivel, almoco));
   });
 }
 function criarBotaoHorario(horario, indisponivel, almoco) {

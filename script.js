@@ -277,6 +277,13 @@ function formatarDataISO(dia) {
   return `${ano}-${mes}-${diaMes}`;
 }
 
+// índice do dia da semana (0=Domingo...6=Sábado) a partir de uma data ISO,
+// usado tanto para salvar quanto para consultar mensalistas
+function obterDiaSemanaIndex(dataISO) {
+  const [ano, mes, dia] = dataISO.split("-").map(Number);
+  return new Date(ano, mes - 1, dia).getDay();
+}
+
 function criarBotaoData(dia, offset) {
   const iso = formatarDataISO(dia);
   const dataCurta = dia.toLocaleDateString("pt-BR", {
@@ -373,14 +380,42 @@ function gerarMinutosOcupados(agendamentos) {
   return minutosOcupados;
 }
 
-function intervaloDisponivel(horarioInicio, duracaoMinutos, minutosOcupados) {
+// busca no Supabase os mensalistas ativos com horário fixo no dia da semana informado
+async function buscarMensalistas(diaSemana) {
+  const { data: mensalistas, error } = await supabaseClient
+    .from("mensalistas")
+    .select("horario")
+    .eq("dia_semana", diaSemana)
+    .eq("ativo", true);
+
+  if (error) {
+    console.log("Erro ao buscar mensalistas:", error);
+    mostrarToast("Erro ao carregar horários");
+    return [];
+  }
+
+  return mensalistas || [];
+}
+
+// verifica se um horário específico já está fixado por algum mensalista ativo
+function horarioReservadoPorMensalista(horario, mensalistas) {
+  return mensalistas.some((mensalista) => mensalista.horario === horario);
+}
+
+function intervaloDisponivel(horarioInicio, duracaoMinutos, minutosOcupados, mensalistas) {
   const inicio = horaParaMinutos(horarioInicio);
   const fim = inicio + duracaoMinutos;
 
   if (fim > FECHAMENTO) return false;
 
   for (let minutos = inicio; minutos < fim; minutos += 30) {
-    if (estaNoHorarioAlmoco(minutos) || minutosOcupados.has(minutos)) {
+    const horarioSlot = minutosParaHora(minutos);
+
+    if (
+      estaNoHorarioAlmoco(minutos) ||
+      minutosOcupados.has(minutos) ||
+      horarioReservadoPorMensalista(horarioSlot, mensalistas)
+    ) {
       return false;
     }
   }
@@ -398,7 +433,11 @@ async function carregarHorarios(data, ehHoje) {
   const agora = new Date();
   const minutoAtual = agora.getHours() * 60 + agora.getMinutes();
 
-  const agendamentos = await buscarHorariosOcupados(data);
+  const [agendamentos, mensalistas] = await Promise.all([
+    buscarHorariosOcupados(data),
+    buscarMensalistas(obterDiaSemanaIndex(data)),
+  ]);
+
   const minutosOcupados = gerarMinutosOcupados(agendamentos);
 
   HORARIOS.forEach((horario) => {
@@ -409,7 +448,12 @@ async function carregarHorarios(data, ehHoje) {
     const indisponivel =
       jaPassou ||
       almoco ||
-      !intervaloDisponivel(horario, state.duracaoMinutos, minutosOcupados);
+      !intervaloDisponivel(
+        horario,
+        state.duracaoMinutos,
+        minutosOcupados,
+        mensalistas,
+      );
 
     timeGrid.appendChild(criarBotaoHorario(horario, indisponivel, almoco));
   });
@@ -633,6 +677,21 @@ btnConfirmar.addEventListener("click", async () => {
 
   console.log("Agendamento salvo!");
 
+  const ehMensalista = (state.tipoCliente || "").toLowerCase() === "mensalista";
+
+  if (ehMensalista) {
+    const { error: erroMensalista } = await salvarMensalista(
+      state.clienteId,
+      obterDiaSemanaIndex(state.data),
+      state.horario,
+    );
+
+    if (erroMensalista) {
+      console.log("Erro ao salvar mensalista:", erroMensalista);
+      mostrarToast("Agendamento salvo, mas houve erro ao fixar o horário semanal");
+    }
+  }
+
   const mensagem = gerarMensagemWhatsApp();
   const url = `https://wa.me/${WHATSAPP_NUMERO}?text=${encodeURIComponent(mensagem)}`;
 
@@ -676,7 +735,7 @@ async function salvarAgendamento(clienteId) {
 }
 
 // vincula um horário fixo semanal ao cliente mensalista
-async function criarMensalista(clienteId, diaSemana, horario) {
+async function salvarMensalista(clienteId, diaSemana, horario) {
   const { data, error } = await supabaseClient.from("mensalistas").insert({
     cliente_id: clienteId,
     dia_semana: diaSemana,

@@ -78,9 +78,14 @@ const HORARIOS = [
   "21:00",
 ];
 
+function horaParaMinutos(horario) {
+  const [horas, minutos] = horario.split(":").map(Number);
+  return horas * 60 + minutos;
+}
+
 const ALMOCO_INICIO = horaParaMinutos("13:00");
 const ALMOCO_FIM = horaParaMinutos("14:00");
-const FECHAMENTO = horaParaMinutos("21:00");
+const FECHAMENTO = horaParaMinutos("22:00");
 
 // telas que entram na barra de progresso — pagamento e sucesso ficam de fora
 const ETAPAS = [
@@ -162,6 +167,33 @@ themeBtn.addEventListener("click", () => {
 
 // Serviços
 const quimicaAviso = document.getElementById("quimicaAviso");
+
+// mapa servico -> duração (minutos), montado a partir do data-duracao que já
+// existe em cada botão .card-option — evita duplicar essa informação em JS
+function montarMapaDuracoes() {
+  const mapa = {};
+
+  document.querySelectorAll(".card-option").forEach((botao) => {
+    const servico = botao.dataset.servico;
+    const duracao = Number(botao.dataset.duracao);
+
+    if (servico && duracao) {
+      mapa[servico] = duracao;
+    }
+  });
+
+  return mapa;
+}
+
+const DURACOES_SERVICOS = montarMapaDuracoes();
+
+// duração de fallback para agendamentos cujo serviço não é mais encontrado
+// entre os botões atuais (ex: serviço removido/renomeado depois de agendado)
+const DURACAO_PADRAO = 30;
+
+function obterDuracaoServico(servico) {
+  return DURACOES_SERVICOS[servico] || DURACAO_PADRAO;
+}
 
 function selecionarServico(botao) {
   const categoria = botao.dataset.categoria;
@@ -302,26 +334,53 @@ function estaNoHorarioAlmoco(minutos) {
   return minutos >= ALMOCO_INICIO && minutos < ALMOCO_FIM;
 }
 
-// simulação de ocupação — no futuro isso vem de uma consulta ao banco
-function horarioOcupado(data, horario) {
-  const soma = (data + horario)
-    .split("")
-    .reduce((total, char) => total + char.charCodeAt(0), 0);
+// busca no Supabase os agendamentos já cadastrados para a data selecionada
+async function buscarHorariosOcupados(data) {
+  const { data: agendamentos, error } = await supabaseClient
+    .from("agendamentos")
+    .select("horario, servico")
+    .eq("data", data);
 
-  return soma % 100 < 30;
+  if (error) {
+    console.log("Erro ao buscar horários ocupados:", error);
+    mostrarToast("Erro ao carregar horários");
+    return [];
+  }
+
+  return (agendamentos || []).map((agendamento) => ({
+    horario: agendamento.horario,
+    servico: agendamento.servico,
+    duracao: obterDuracaoServico(agendamento.servico),
+  }));
 }
 
-function intervaloDisponivel(data, horarioInicio, duracaoMinutos) {
+// cada agendamento ocupa, em blocos de 30min, do horário de início até o
+// horário de início + duração do serviço
+function gerarMinutosOcupados(agendamentos) {
+  const minutosOcupados = new Set();
+
+  agendamentos.forEach(({ horario, duracao }) => {
+    if (!horario) return;
+
+    const inicio = horaParaMinutos(horario);
+    const fim = inicio + duracao;
+
+    for (let minutos = inicio; minutos < fim; minutos += 30) {
+      minutosOcupados.add(minutos);
+    }
+  });
+
+  return minutosOcupados;
+}
+
+function intervaloDisponivel(horarioInicio, duracaoMinutos, minutosOcupados) {
   const inicio = horaParaMinutos(horarioInicio);
   const fim = inicio + duracaoMinutos;
 
   if (fim > FECHAMENTO) return false;
 
   for (let minutos = inicio; minutos < fim; minutos += 30) {
-    if (
-      estaNoHorarioAlmoco(minutos) ||
-      horarioOcupado(data, minutosParaHora(minutos))
-    ) {
+    if (estaNoHorarioAlmoco(minutos) || minutosOcupados.has(minutos)) {
       return false;
     }
   }
@@ -339,17 +398,18 @@ async function carregarHorarios(data, ehHoje) {
   const agora = new Date();
   const minutoAtual = agora.getHours() * 60 + agora.getMinutes();
 
+  const agendamentos = await buscarHorariosOcupados(data);
+  const minutosOcupados = gerarMinutosOcupados(agendamentos);
+
   HORARIOS.forEach((horario) => {
     const minutoHorario = horaParaMinutos(horario);
     const almoco = estaNoHorarioAlmoco(minutoHorario);
     const jaPassou = ehHoje && minutoHorario < minutoAtual + 30;
-    const ocupado = horarioOcupado(data, horario);
 
     const indisponivel =
       jaPassou ||
       almoco ||
-      ocupado ||
-      !intervaloDisponivel(data, horario, state.duracaoMinutos);
+      !intervaloDisponivel(horario, state.duracaoMinutos, minutosOcupados);
 
     timeGrid.appendChild(criarBotaoHorario(horario, indisponivel, almoco));
   });
@@ -430,25 +490,19 @@ formDados.addEventListener("submit", async (event) => {
     '[name="tipoCliente"]:checked',
   ).value;
 
-  const { data, error } = await supabaseClient
-    .from("clientes")
-    .insert([
-      {
-        nome: state.nome,
-        telefone: state.whatsapp,
-        tipo_cliente: state.tipoCliente,
-      },
-    ])
-    .select();
+  const resultado = await buscarOuCriarCliente(
+    state.nome,
+    state.whatsapp,
+    state.tipoCliente,
+  );
 
-  if (error) {
-    console.log("Erro ao salvar cliente:", error);
+  if (resultado.erro) {
+    console.log("Erro ao salvar cliente:", resultado.erro);
     mostrarToast("Erro ao salvar cliente");
     return;
   }
 
-  console.log("Cliente salvo:", data);
-  state.clienteId = data[0].id;
+  state.clienteId = resultado.id;
 
   gerarResumo();
   irPara("tela-resumo");
@@ -567,6 +621,7 @@ btnConfirmar.addEventListener("click", async () => {
       servico: state.servico,
       data: state.data,
       horario: state.horario,
+      status: "confirmado",
     },
   ]);
 
@@ -586,14 +641,13 @@ btnConfirmar.addEventListener("click", async () => {
   window.open(url, "_blank", "noopener");
 });
 // Supabase — clientes e agendamentos
-// preparado para a próxima etapa: ainda não é chamado pelo fluxo de confirmação acima
 
-// busca o cliente pelo whatsapp e cria um novo caso não exista
+// busca o cliente pelo telefone (WhatsApp) e cria um novo caso não exista
 async function buscarOuCriarCliente(nome, whatsapp, tipoCliente) {
   const { data: existente, error: erroBusca } = await supabaseClient
     .from("clientes")
     .select("id")
-    .eq("whatsapp", whatsapp)
+    .eq("telefone", whatsapp)
     .maybeSingle();
 
   if (erroBusca) return { erro: erroBusca };
@@ -601,7 +655,7 @@ async function buscarOuCriarCliente(nome, whatsapp, tipoCliente) {
 
   const { data: novoCliente, error: erroCriacao } = await supabaseClient
     .from("clientes")
-    .insert({ nome, whatsapp, tipo_cliente: tipoCliente })
+    .insert({ nome, telefone: whatsapp, tipo_cliente: tipoCliente })
     .select("id")
     .single();
 
@@ -615,7 +669,6 @@ async function salvarAgendamento(clienteId) {
     data: state.data,
     horario: state.horario,
     servico: state.servico,
-    duracao: state.duracaoMinutos,
     status: "confirmado",
   });
 

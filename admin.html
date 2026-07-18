@@ -1,42 +1,362 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="pt-BR">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Painel Admin | Garagem do Gueto</title>
-  <link rel="stylesheet" href="style.css">
-  <link rel="stylesheet" href="admin.css">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, viewport-fit=cover"
+    />
+    <meta name="theme-color" content="#111111" />
+    <title>GaragemDoGueto — Painel Administrativo</title>
+    <meta
+      name="description"
+      content="Painel administrativo da GaragemDoGueto."
+    />
+    <meta name="robots" content="noindex, nofollow" />
 
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-</head>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Sora:wght@600;700;800&family=Manrope:wght@400;500;600;700;800&display=swap"
+      rel="stylesheet"
+    />
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css"
+    />
 
-<body>
-
-<div class="app">
-
-    <header class="topbar">
-
-    <h2>💈Garagem do Gueto</h2>
-
-    <p>Painel Administrativo</p>
-
-    <p id="contadorAgendamentos">Carregando...</p>
-
-</header>
-
-    <main>
-
-        <div id="listaAgendamentos">
-
-            <p>Carregando...</p>
-
+    <link rel="stylesheet" href="style.css" />
+    <link rel="stylesheet" href="admin.css" />
+  </head>
+  <body>
+    <div class="admin-app">
+      <!-- Login -->
+      <section class="admin-login is-active" id="tela-login">
+        <div class="brand">
+          <div class="brand-icon"><i class="fa-solid fa-scissors"></i></div>
+          <p>GaragemDoGueto</p>
         </div>
 
-    </main>
+        <h1>Painel Administrativo</h1>
+        <p class="subtitle">Acesso restrito ao barbeiro</p>
 
-</div>
+        <form id="formLogin" novalidate>
+          <div class="field">
+            <label for="senhaAdmin">Senha</label>
+            <input
+              type="password"
+              id="senhaAdmin"
+              placeholder="Digite a senha de acesso"
+              autocomplete="current-password"
+            />
+            <span class="field-error" id="erroSenha"></span>
+          </div>
 
-<script src="admin.js"></script>
+          <button type="submit" class="btn btn-primary">Entrar</button>
+        </form>
+      </section>
 
-</body>
+      <!-- Painel -->
+      <div class="admin-painel" id="painel" hidden>
+        <!-- Sidebar (desktop) -->
+        <aside class="admin-sidebar">
+          <div class="admin-sidebar-brand">
+            <div class="brand-icon"><i class="fa-solid fa-scissors"></i></div>
+            <div>
+              <strong>GaragemDoGueto</strong>
+              <small>Painel Administrativo</small>
+            </div>
+          </div>
+
+          <nav class="admin-nav">
+            <button
+              type="button"
+              class="admin-nav-item is-active"
+              data-secao="dashboard"
+            >
+              <i class="fa-solid fa-chart-line"></i><span>Dashboard</span>
+            </button>
+            <button type="button" class="admin-nav-item" data-secao="agenda">
+              <i class="fa-solid fa-calendar-days"></i><span>Agenda</span>
+            </button>
+            <button type="button" class="admin-nav-item" data-secao="clientes">
+              <i class="fa-solid fa-users"></i><span>Clientes</span>
+            </button>
+            <button
+              type="button"
+              class="admin-nav-item"
+              data-secao="mensalistas"
+            >
+              <i class="fa-solid fa-repeat"></i><span>Mensalistas</span>
+            </button>
+            <button type="button" class="admin-nav-item" data-secao="servicos">
+              <i class="fa-solid fa-scissors"></i><span>Serviços</span>
+            </button>
+            <button
+              type="button"
+              class="admin-nav-item"
+              data-secao="configuracoes"
+            >
+              <i class="fa-solid fa-gear"></i><span>Configurações</span>
+            </button>
+          </nav>
+
+          <button type="button" class="admin-logout" id="btnSair">
+            <i class="fa-solid fa-right-from-bracket"></i><span>Sair</span>
+          </button>
+        </aside>
+
+        <!-- Conteúdo -->
+        <div class="admin-main">
+          <header class="admin-topbar">
+            <h1 id="admin-titulo-secao">Dashboard</h1>
+            <button
+              type="button"
+              class="icon-btn"
+              id="themeBtnAdmin"
+              aria-label="Alternar tema"
+            >
+              <i class="fa-solid fa-moon"></i>
+            </button>
+          </header>
+
+          <main class="admin-content">
+            <!-- Dashboard -->
+            <section
+              class="admin-secao is-active"
+              id="secao-dashboard"
+              data-secao="dashboard"
+            >
+              <div class="admin-stats-grid">
+                <div class="admin-stat-card">
+                  <span class="admin-stat-icon"
+                    ><i class="fa-solid fa-calendar-day"></i
+                  ></span>
+                  <div class="admin-stat-info">
+                    <strong id="statHoje">—</strong>
+                    <small>Agendamentos hoje</small>
+                  </div>
+                </div>
+                <div class="admin-stat-card">
+                  <span class="admin-stat-icon"
+                    ><i class="fa-solid fa-calendar-week"></i
+                  ></span>
+                  <div class="admin-stat-info">
+                    <strong id="statSemana">—</strong>
+                    <small>Agendamentos na semana</small>
+                  </div>
+                </div>
+                <div class="admin-stat-card">
+                  <span class="admin-stat-icon"
+                    ><i class="fa-solid fa-users"></i
+                  ></span>
+                  <div class="admin-stat-info">
+                    <strong id="statClientes">—</strong>
+                    <small>Clientes cadastrados</small>
+                  </div>
+                </div>
+                <div class="admin-stat-card">
+                  <span class="admin-stat-icon"
+                    ><i class="fa-solid fa-repeat"></i
+                  ></span>
+                  <div class="admin-stat-info">
+                    <strong id="statMensalistas">—</strong>
+                    <small>Mensalistas ativos</small>
+                  </div>
+                </div>
+                <div class="admin-stat-card admin-stat-card--gold">
+                  <span class="admin-stat-icon"
+                    ><i class="fa-solid fa-sack-dollar"></i
+                  ></span>
+                  <div class="admin-stat-info">
+                    <strong id="statFaturamentoDia">—</strong>
+                    <small>Faturamento do dia</small>
+                  </div>
+                </div>
+                <div class="admin-stat-card admin-stat-card--gold">
+                  <span class="admin-stat-icon"
+                    ><i class="fa-solid fa-coins"></i
+                  ></span>
+                  <div class="admin-stat-info">
+                    <strong id="statFaturamentoMes">—</strong>
+                    <small>Faturamento do mês</small>
+                  </div>
+                </div>
+              </div>
+            </section>
+
+            <!-- Agenda -->
+            <section class="admin-secao" id="secao-agenda" data-secao="agenda">
+              <div class="admin-filtros" id="agendaFiltros">
+                <button
+                  type="button"
+                  class="admin-chip is-active"
+                  data-filtro="hoje"
+                >
+                  Hoje
+                </button>
+                <button type="button" class="admin-chip" data-filtro="amanha">
+                  Amanhã
+                </button>
+                <input
+                  type="date"
+                  class="admin-chip-date"
+                  id="agendaDataEspecifica"
+                />
+              </div>
+
+              <div class="admin-list" id="agendaLista">
+                <p class="admin-empty">Carregando agendamentos…</p>
+              </div>
+            </section>
+
+            <!-- Clientes -->
+            <section
+              class="admin-secao"
+              id="secao-clientes"
+              data-secao="clientes"
+            >
+              <div class="admin-search">
+                <i class="fa-solid fa-magnifying-glass"></i>
+                <input
+                  type="text"
+                  id="clientesBusca"
+                  placeholder="Buscar por nome ou WhatsApp"
+                />
+              </div>
+
+              <div class="admin-list" id="clientesLista">
+                <p class="admin-empty">Carregando clientes…</p>
+              </div>
+            </section>
+
+            <!-- Mensalistas -->
+            <section
+              class="admin-secao"
+              id="secao-mensalistas"
+              data-secao="mensalistas"
+            >
+              <div class="admin-list" id="mensalistasLista">
+                <p class="admin-empty">Carregando mensalistas…</p>
+              </div>
+            </section>
+
+            <!-- Serviços -->
+            <section
+              class="admin-secao"
+              id="secao-servicos"
+              data-secao="servicos"
+            >
+              <button
+                type="button"
+                class="btn btn-primary admin-btn-novo"
+                id="btnNovoServico"
+              >
+                <i class="fa-solid fa-plus"></i> Novo serviço
+              </button>
+
+              <div class="admin-list" id="servicosLista">
+                <p class="admin-empty">Carregando serviços…</p>
+              </div>
+            </section>
+
+            <!-- Configurações -->
+            <section
+              class="admin-secao"
+              id="secao-configuracoes"
+              data-secao="configuracoes"
+            >
+              <form id="formConfiguracoes" class="admin-form" novalidate>
+                <div class="field">
+                  <label for="cfgNomeBarbearia">Nome da barbearia</label>
+                  <input type="text" id="cfgNomeBarbearia" />
+                </div>
+
+                <div class="field">
+                  <label for="cfgWhatsapp"
+                    >WhatsApp (com DDI e DDD, só números)</label
+                  >
+                  <input
+                    type="text"
+                    id="cfgWhatsapp"
+                    placeholder="5511999999999"
+                  />
+                </div>
+
+                <div class="field">
+                  <label for="cfgPix">Chave PIX</label>
+                  <input type="text" id="cfgPix" />
+                </div>
+
+                <div class="admin-form-row">
+                  <div class="field">
+                    <label for="cfgAbertura">Abertura</label>
+                    <input type="time" id="cfgAbertura" />
+                  </div>
+                  <div class="field">
+                    <label for="cfgFechamento">Fechamento</label>
+                    <input type="time" id="cfgFechamento" />
+                  </div>
+                </div>
+
+                <div class="admin-form-row">
+                  <div class="field">
+                    <label for="cfgAlmocoInicio">Almoço — início</label>
+                    <input type="time" id="cfgAlmocoInicio" />
+                  </div>
+                  <div class="field">
+                    <label for="cfgAlmocoFim">Almoço — fim</label>
+                    <input type="time" id="cfgAlmocoFim" />
+                  </div>
+                </div>
+
+                <button type="submit" class="btn btn-primary">
+                  Salvar configurações
+                </button>
+              </form>
+            </section>
+          </main>
+        </div>
+
+        <!-- Navegação inferior (mobile) -->
+        <nav class="admin-bottom-nav">
+          <button
+            type="button"
+            class="admin-bottom-item is-active"
+            data-secao="dashboard"
+          >
+            <i class="fa-solid fa-chart-line"></i><span>Dashboard</span>
+          </button>
+          <button type="button" class="admin-bottom-item" data-secao="agenda">
+            <i class="fa-solid fa-calendar-days"></i><span>Agenda</span>
+          </button>
+          <button type="button" class="admin-bottom-item" data-secao="clientes">
+            <i class="fa-solid fa-users"></i><span>Clientes</span>
+          </button>
+          <button
+            type="button"
+            class="admin-bottom-item"
+            data-secao="mensalistas"
+          >
+            <i class="fa-solid fa-repeat"></i><span>Mensal.</span>
+          </button>
+          <button type="button" class="admin-bottom-item" data-secao="servicos">
+            <i class="fa-solid fa-scissors"></i><span>Serviços</span>
+          </button>
+          <button
+            type="button"
+            class="admin-bottom-item"
+            data-secao="configuracoes"
+          >
+            <i class="fa-solid fa-gear"></i><span>Config.</span>
+          </button>
+        </nav>
+      </div>
+
+      <p class="toast" id="toastAdmin" role="alert"></p>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="admin.js"></script>
+  </body>
 </html>

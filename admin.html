@@ -170,6 +170,12 @@
 
           <!-- Clientes -->
           <section class="admin-secao" id="secao-clientes" data-secao="clientes">
+            <div class="admin-filtros" id="clientesFiltros">
+              <button type="button" class="admin-chip is-active" data-filtro="todos">Todos</button>
+              <button type="button" class="admin-chip" data-filtro="Cliente Avulso">Cliente Avulso</button>
+              <button type="button" class="admin-chip" data-filtro="Mensalista">Mensalista</button>
+            </div>
+
             <div class="admin-search">
               <i class="fa-solid fa-magnifying-glass"></i>
               <input type="text" id="clientesBusca" placeholder="Buscar por nome ou WhatsApp">
@@ -267,6 +273,55 @@
         </button>
       </nav>
 
+    </div>
+
+    <!-- Modal de cliente (detalhes, histórico e edição) -->
+    <div class="admin-modal-overlay" id="modalOverlay" hidden>
+      <div class="admin-modal">
+        <div class="admin-modal-topo">
+          <h2 id="modalClienteTitulo">Cliente</h2>
+          <button type="button" class="icon-btn" id="modalClienteFechar" aria-label="Fechar">
+            <i class="fa-solid fa-xmark"></i>
+          </button>
+        </div>
+
+        <div class="admin-modal-conteudo">
+          <form id="formEditarCliente" class="admin-form" novalidate>
+            <div class="field">
+              <label for="clienteEditNome">Nome</label>
+              <input type="text" id="clienteEditNome">
+            </div>
+
+            <div class="field">
+              <label for="clienteEditWhatsapp">WhatsApp</label>
+              <input type="text" id="clienteEditWhatsapp">
+            </div>
+
+            <fieldset class="field">
+              <legend>Tipo de cliente</legend>
+              <div class="radio-group">
+                <label class="radio-card">
+                  <input type="radio" name="clienteEditTipo" value="Cliente Avulso">
+                  <span class="radio-dot"></span>
+                  Cliente Avulso
+                </label>
+                <label class="radio-card">
+                  <input type="radio" name="clienteEditTipo" value="Mensalista">
+                  <span class="radio-dot"></span>
+                  Mensalista
+                </label>
+              </div>
+            </fieldset>
+
+            <button type="submit" class="btn btn-primary">Salvar alterações</button>
+          </form>
+
+          <div>
+            <h3 class="admin-modal-subtitulo">Histórico de agendamentos</h3>
+            <div class="admin-list" id="modalClienteHistorico"></div>
+          </div>
+        </div>
+      </div>
     </div>
 
     <p class="toast" id="toastAdmin" role="alert"></p>

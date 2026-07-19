@@ -117,7 +117,7 @@ const TITULOS_SECAO = {
 const CARREGADORES_SECAO = {
   dashboard: () => carregarDashboard(),
   agenda: () => carregarAgenda(),
-  clientes: () => {},
+  clientes: () => carregarClientes(),
   mensalistas: () => {},
   servicos: () => {},
   configuracoes: () => {},
@@ -371,19 +371,24 @@ function agendamentoAtendeFiltro(agendamento, filtro, dataEspecifica, hojeISO, a
   }
 }
 
-// decide se um agendamento bate com o texto buscado (nome ou telefone)
-function agendamentoAtendeBusca(agendamento, termo) {
+// compara nome/telefone com um termo buscado — usado pela Agenda e por Clientes
+function correspondeABusca(nome, telefone, termo) {
   if (!termo) return true;
 
   const termoLimpo = termo.trim().toLowerCase();
   const termoDigitos = termoLimpo.replace(/\D/g, "");
-  const cliente = agendamento.clientes || {};
-  const nome = (cliente.nome || "").toLowerCase();
-  const telefoneDigitos = (cliente.telefone || "").replace(/\D/g, "");
+  const nomeNormalizado = (nome || "").toLowerCase();
+  const telefoneDigitos = (telefone || "").replace(/\D/g, "");
 
-  if (nome.includes(termoLimpo)) return true;
+  if (nomeNormalizado.includes(termoLimpo)) return true;
   if (termoDigitos && telefoneDigitos.includes(termoDigitos)) return true;
   return false;
+}
+
+// decide se um agendamento bate com o texto buscado (nome ou telefone do cliente)
+function agendamentoAtendeBusca(agendamento, termo) {
+  const cliente = agendamento.clientes || {};
+  return correspondeABusca(cliente.nome, cliente.telefone, termo);
 }
 
 function criarCardAgendamento(agendamento) {
@@ -487,4 +492,213 @@ agendaListaEl.addEventListener("click", (event) => {
   const id = Number(botao.dataset.id);
   const novoStatus = botao.dataset.acao === "confirmar" ? "confirmado" : "cancelado";
   atualizarStatusAgendamento(id, novoStatus);
+});
+
+// Clientes
+const clientesListaEl = document.getElementById("clientesLista");
+const clientesFiltrosEl = document.getElementById("clientesFiltros");
+const campoBuscaClientes = document.getElementById("clientesBusca");
+const modalOverlayEl = document.getElementById("modalOverlay");
+const formEditarCliente = document.getElementById("formEditarCliente");
+
+let CLIENTES_CACHE = [];
+let filtroClientesAtivo = "todos";
+let clienteSelecionadoId = null;
+
+// busca clientes já trazendo o histórico de agendamentos relacionado
+// (join via cliente_id), usado tanto no card quanto no modal de detalhes
+async function buscarClientes() {
+  const { data, error } = await supabaseClient
+    .from("clientes")
+    .select("id, nome, telefone, tipo_cliente, agendamentos(data, horario, servico, status)")
+    .order("nome", { ascending: true });
+
+  if (error) {
+    tratarErroSupabase(error, "Erro ao carregar clientes");
+    return [];
+  }
+
+  return data || [];
+}
+
+// quantidade de agendamentos realizados e data do último, ignorando cancelados
+function calcularResumoCliente(cliente) {
+  const validos = (cliente.agendamentos || []).filter((item) => item.status !== "cancelado");
+
+  const ultimaData = validos.reduce(
+    (recente, item) => (!recente || item.data > recente ? item.data : recente),
+    null,
+  );
+
+  return { quantidade: validos.length, ultimaData };
+}
+
+function clienteAtendeFiltro(cliente, filtro) {
+  return filtro === "todos" || cliente.tipo_cliente === filtro;
+}
+
+function clienteAtendeBusca(cliente, termo) {
+  return correspondeABusca(cliente.nome, cliente.telefone, termo);
+}
+
+function criarCardCliente(cliente) {
+  const { quantidade, ultimaData } = calcularResumoCliente(cliente);
+  const tipoClasse = cliente.tipo_cliente === "Mensalista" ? "ativo" : "pausado";
+  const ultimoTexto = ultimaData ? formatarDataBR(ultimaData) : "—";
+
+  return `
+    <div class="admin-card admin-card--clicavel" data-id="${cliente.id}">
+      <div class="admin-card-topo">
+        <div>
+          <div class="admin-card-titulo">${cliente.nome}</div>
+          <div class="admin-card-sub">${cliente.telefone || "—"}</div>
+        </div>
+        <span class="admin-badge admin-badge--${tipoClasse}">${cliente.tipo_cliente || "—"}</span>
+      </div>
+      <div class="admin-card-sub">${quantidade} agendamento${quantidade === 1 ? "" : "s"} · Último: ${ultimoTexto}</div>
+    </div>
+  `;
+}
+
+function renderizarClientes() {
+  const listaFiltrada = CLIENTES_CACHE.filter(
+    (cliente) =>
+      clienteAtendeFiltro(cliente, filtroClientesAtivo) &&
+      clienteAtendeBusca(cliente, campoBuscaClientes.value),
+  );
+
+  clientesListaEl.innerHTML = listaFiltrada.length
+    ? listaFiltrada.map(criarCardCliente).join("")
+    : '<p class="admin-empty">Nenhum cliente encontrado.</p>';
+}
+
+async function carregarClientes() {
+  clientesListaEl.innerHTML = '<p class="admin-empty">Carregando clientes…</p>';
+  CLIENTES_CACHE = await buscarClientes();
+  renderizarClientes();
+}
+
+// mais recente primeiro, pra ficar fácil ver o último atendimento no topo
+function ordenarAgendamentosRecentesPrimeiro(agendamentos) {
+  return [...agendamentos].sort((a, b) =>
+    `${b.data} ${b.horario}`.localeCompare(`${a.data} ${a.horario}`),
+  );
+}
+
+function gerarHistoricoCliente(cliente) {
+  const agendamentos = ordenarAgendamentosRecentesPrimeiro(cliente.agendamentos || []);
+
+  if (!agendamentos.length) {
+    return '<p class="admin-empty">Nenhum agendamento ainda.</p>';
+  }
+
+  return agendamentos
+    .map((agendamento) => {
+      const statusInfo = obterStatusInfo(agendamento.status);
+      return `
+        <div class="admin-card">
+          <div class="admin-card-topo">
+            <div>
+              <div class="admin-card-titulo">${agendamento.servico}</div>
+              <div class="admin-card-sub">${formatarDataBR(agendamento.data)} às ${agendamento.horario}</div>
+            </div>
+            <span class="admin-badge admin-badge--${statusInfo.classe}">${statusInfo.label}</span>
+          </div>
+        </div>
+      `;
+    })
+    .join("");
+}
+
+function abrirModalCliente(id) {
+  const cliente = CLIENTES_CACHE.find((item) => item.id === id);
+  if (!cliente) return;
+
+  clienteSelecionadoId = id;
+
+  document.getElementById("modalClienteTitulo").textContent = cliente.nome;
+  document.getElementById("clienteEditNome").value = cliente.nome || "";
+  document.getElementById("clienteEditWhatsapp").value = cliente.telefone || "";
+
+  document.querySelectorAll('input[name="clienteEditTipo"]').forEach((input) => {
+    input.checked = input.value === cliente.tipo_cliente;
+  });
+
+  document.getElementById("modalClienteHistorico").innerHTML = gerarHistoricoCliente(cliente);
+
+  modalOverlayEl.hidden = false;
+}
+
+function fecharModalCliente() {
+  modalOverlayEl.hidden = true;
+  clienteSelecionadoId = null;
+}
+
+// só atualiza clientes; se o tipo virar Mensalista, o vínculo de horário fixo
+// fica pra próxima etapa (não é criado automaticamente aqui)
+async function salvarEdicaoCliente(id, dados) {
+  const { error } = await supabaseClient.from("clientes").update(dados).eq("id", id);
+
+  if (error) {
+    tratarErroSupabase(error, "Erro ao salvar cliente");
+    return;
+  }
+
+  const cliente = CLIENTES_CACHE.find((item) => item.id === id);
+  if (cliente) Object.assign(cliente, dados);
+
+  renderizarClientes();
+  fecharModalCliente();
+  mostrarToastAdmin("Cliente atualizado com sucesso.");
+}
+
+clientesFiltrosEl.querySelectorAll(".admin-chip").forEach((chip) => {
+  chip.addEventListener("click", () => {
+    filtroClientesAtivo = chip.dataset.filtro;
+
+    clientesFiltrosEl
+      .querySelectorAll(".admin-chip")
+      .forEach((c) => c.classList.toggle("is-active", c === chip));
+
+    renderizarClientes();
+  });
+});
+
+campoBuscaClientes.addEventListener("input", () => renderizarClientes());
+
+clientesListaEl.addEventListener("click", (event) => {
+  const card = event.target.closest(".admin-card[data-id]");
+  if (!card) return;
+  abrirModalCliente(Number(card.dataset.id));
+});
+
+document.getElementById("modalClienteFechar").addEventListener("click", fecharModalCliente);
+
+modalOverlayEl.addEventListener("click", (event) => {
+  if (event.target === modalOverlayEl) fecharModalCliente();
+});
+
+document.addEventListener("keydown", (event) => {
+  if (event.key === "Escape" && !modalOverlayEl.hidden) fecharModalCliente();
+});
+
+formEditarCliente.addEventListener("submit", (event) => {
+  event.preventDefault();
+
+  if (!clienteSelecionadoId) return;
+
+  const nome = document.getElementById("clienteEditNome").value.trim();
+  const telefone = document.getElementById("clienteEditWhatsapp").value.trim();
+  const tipoSelecionado = document.querySelector('input[name="clienteEditTipo"]:checked');
+
+  if (!nome || !telefone || !tipoSelecionado) {
+    mostrarToastAdmin("Preencha nome, WhatsApp e tipo de cliente.");
+    return;
+  }
+
+  salvarEdicaoCliente(clienteSelecionadoId, {
+    nome,
+    telefone,
+    tipo_cliente: tipoSelecionado.value,
+  });
 });

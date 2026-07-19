@@ -391,6 +391,74 @@
   cursor: not-allowed;
 }
 
+.admin-card--clicavel {
+  cursor: pointer;
+  transition: border-color 0.15s var(--ease);
+}
+
+.admin-card--clicavel:hover {
+  border-color: var(--gold);
+}
+
+/* ---------- Modal (detalhes/edição de cliente, reutilizável) ---------- */
+.admin-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.6);
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  z-index: 50;
+  padding: 0;
+}
+
+.admin-modal-overlay[hidden] {
+  display: none;
+}
+
+.admin-modal {
+  width: 100%;
+  max-height: 88dvh;
+  overflow-y: auto;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 24px 24px 0 0;
+  padding: 20px;
+  animation: adminModalSubir 0.25s var(--ease);
+}
+
+@keyframes adminModalSubir {
+  from { transform: translateY(16px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+
+.admin-modal-topo {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 18px;
+}
+
+.admin-modal-topo h2 {
+  font-family: var(--font-heading);
+  font-size: 1.15rem;
+  font-weight: 700;
+}
+
+.admin-modal-conteudo {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.admin-modal-subtitulo {
+  font-family: var(--font-heading);
+  font-size: 0.9rem;
+  font-weight: 700;
+  margin-bottom: 12px;
+}
+
 /* ---------- Badges de status ---------- */
 .admin-badge {
   display: inline-flex;
@@ -494,6 +562,16 @@
     display: grid;
     grid-template-columns: repeat(2, 1fr);
     align-items: start;
+  }
+
+  .admin-modal-overlay {
+    align-items: center;
+  }
+
+  .admin-modal {
+    width: 540px;
+    max-height: 82dvh;
+    border-radius: var(--radius-lg);
   }
 }
 

@@ -386,6 +386,11 @@
   color: var(--red);
 }
 
+.admin-card-acoes button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
 /* ---------- Badges de status ---------- */
 .admin-badge {
   display: inline-flex;

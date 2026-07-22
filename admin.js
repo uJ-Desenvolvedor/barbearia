@@ -118,9 +118,9 @@ const CARREGADORES_SECAO = {
   dashboard: () => carregarDashboard(),
   agenda: () => carregarAgenda(),
   clientes: () => carregarClientes(),
-  mensalistas: () => {},
+  mensalistas: () => carregarMensalistas(),
   servicos: () => {},
-  configuracoes: () => {},
+  configuracoes: () => carregarConfiguracoes(),
 };
 
 const tituloSecaoEl = document.getElementById("admin-titulo-secao");
@@ -701,4 +701,325 @@ formEditarCliente.addEventListener("submit", (event) => {
     telefone,
     tipo_cliente: tipoSelecionado.value,
   });
+});
+
+// Mensalistas
+// espelha o mesmo padrão de salvarMensalista()/cancelarMensalista() do
+// site público (mesma tabela, mesmos campos, nunca apagar — só atualizar
+// dia_semana/horario/ativo). Fica reimplementado aqui porque admin.js e
+// script.js são páginas separadas e não compartilham escopo.
+const mensalistasListaEl = document.getElementById("mensalistasLista");
+const mensalistasFiltrosEl = document.getElementById("mensalistasFiltros");
+const campoBuscaMensalistas = document.getElementById("mensalistasBusca");
+const modalMensalistaOverlayEl = document.getElementById("modalMensalistaOverlay");
+const formEditarMensalista = document.getElementById("formEditarMensalista");
+const btnAlternarStatusMensalista = document.getElementById("btnAlternarStatusMensalista");
+const erroMensalistaHorarioEl = document.getElementById("erroMensalistaHorario");
+
+const DIAS_SEMANA_LABELS = [
+  "Domingo",
+  "Segunda",
+  "Terça",
+  "Quarta",
+  "Quinta",
+  "Sexta",
+  "Sábado",
+];
+
+let MENSALISTAS_CACHE = [];
+let filtroMensalistasAtivo = "todos";
+let mensalistaSelecionadoId = null;
+
+// busca mensalistas trazendo o cliente e, dentro dele, o histórico de
+// agendamentos — reaproveitado depois por gerarHistoricoCliente()
+async function buscarMensalistas() {
+  const { data, error } = await supabaseClient
+    .from("mensalistas")
+    .select("id, dia_semana, horario, ativo, clientes(id, nome, telefone, agendamentos(data, horario, servico, status))")
+    .order("dia_semana", { ascending: true })
+    .order("horario", { ascending: true });
+
+  if (error) {
+    tratarErroSupabase(error, "Erro ao carregar mensalistas");
+    return [];
+  }
+
+  return data || [];
+}
+
+function mensalistaAtendeFiltro(mensalista, filtro) {
+  if (filtro === "ativos") return mensalista.ativo;
+  if (filtro === "pausados") return !mensalista.ativo;
+  return true; // todos
+}
+
+function mensalistaAtendeBusca(mensalista, termo) {
+  const cliente = mensalista.clientes || {};
+  return correspondeABusca(cliente.nome, cliente.telefone, termo);
+}
+
+function criarCardMensalista(mensalista) {
+  const cliente = mensalista.clientes || {};
+  const diaLabel = DIAS_SEMANA_LABELS[mensalista.dia_semana] || "—";
+  const statusClasse = mensalista.ativo ? "ativo" : "pausado";
+  const statusLabel = mensalista.ativo ? "Ativo" : "Pausado";
+
+  return `
+    <div class="admin-card admin-card--clicavel" data-id="${mensalista.id}">
+      <div class="admin-card-topo">
+        <div>
+          <div class="admin-card-titulo">${cliente.nome || "Cliente não identificado"}</div>
+          <div class="admin-card-sub">${cliente.telefone || "—"}</div>
+        </div>
+        <span class="admin-badge admin-badge--${statusClasse}">${statusLabel}</span>
+      </div>
+      <div class="admin-card-sub">${diaLabel} · ${mensalista.horario}</div>
+    </div>
+  `;
+}
+
+function renderizarMensalistas() {
+  const listaFiltrada = MENSALISTAS_CACHE.filter(
+    (mensalista) =>
+      mensalistaAtendeFiltro(mensalista, filtroMensalistasAtivo) &&
+      mensalistaAtendeBusca(mensalista, campoBuscaMensalistas.value),
+  );
+
+  mensalistasListaEl.innerHTML = listaFiltrada.length
+    ? listaFiltrada.map(criarCardMensalista).join("")
+    : '<p class="admin-empty">Nenhum mensalista encontrado.</p>';
+}
+
+async function carregarMensalistas() {
+  mensalistasListaEl.innerHTML = '<p class="admin-empty">Carregando mensalistas…</p>';
+  MENSALISTAS_CACHE = await buscarMensalistas();
+  renderizarMensalistas();
+}
+
+// só considera conflito com quem está ativo — um mensalista pausado libera
+// o horário pra qualquer outro, inclusive pra ele mesmo ser reativado nele
+async function existeConflitoDeHorario(diaSemana, horario, ignorarId) {
+  const { data, error } = await supabaseClient
+    .from("mensalistas")
+    .select("id")
+    .eq("dia_semana", diaSemana)
+    .eq("horario", horario)
+    .eq("ativo", true)
+    .neq("id", ignorarId);
+
+  if (error) {
+    tratarErroSupabase(error, "Erro ao verificar conflito de horário");
+    return true; // não conseguiu confirmar → bloqueia por segurança
+  }
+
+  return (data || []).length > 0;
+}
+
+function abrirModalMensalista(id) {
+  const mensalista = MENSALISTAS_CACHE.find((item) => item.id === id);
+  if (!mensalista) return;
+
+  mensalistaSelecionadoId = id;
+  const cliente = mensalista.clientes || {};
+
+  document.getElementById("modalMensalistaTitulo").textContent = cliente.nome || "Mensalista";
+  document.getElementById("mensalistaEditDia").value = String(mensalista.dia_semana);
+  document.getElementById("mensalistaEditHorario").value = mensalista.horario;
+  erroMensalistaHorarioEl.textContent = "";
+
+  btnAlternarStatusMensalista.textContent = mensalista.ativo
+    ? "Pausar mensalista"
+    : "Reativar mensalista";
+
+  document.getElementById("modalMensalistaHistorico").innerHTML = gerarHistoricoCliente(cliente);
+
+  modalMensalistaOverlayEl.hidden = false;
+}
+
+function fecharModalMensalista() {
+  modalMensalistaOverlayEl.hidden = true;
+  mensalistaSelecionadoId = null;
+}
+
+async function salvarEdicaoMensalista(id, diaSemana, horario) {
+  const conflito = await existeConflitoDeHorario(diaSemana, horario, id);
+
+  if (conflito) {
+    erroMensalistaHorarioEl.textContent = "Já existe um mensalista ativo nesse dia e horário.";
+    return;
+  }
+
+  const { error } = await supabaseClient
+    .from("mensalistas")
+    .update({ dia_semana: diaSemana, horario })
+    .eq("id", id);
+
+  if (error) {
+    tratarErroSupabase(error, "Erro ao salvar mensalista");
+    return;
+  }
+
+  const mensalista = MENSALISTAS_CACHE.find((item) => item.id === id);
+  if (mensalista) {
+    mensalista.dia_semana = diaSemana;
+    mensalista.horario = horario;
+  }
+
+  renderizarMensalistas();
+  fecharModalMensalista();
+  mostrarToastAdmin("Mensalista atualizado com sucesso.");
+}
+
+// nunca apaga — só alterna o campo ativo (pausar/reativar). Ao reativar,
+// reconfirma que ninguém ocupou o horário enquanto ele estava pausado.
+async function alternarStatusMensalista(id, novoAtivo) {
+  const mensalista = MENSALISTAS_CACHE.find((item) => item.id === id);
+
+  if (novoAtivo && mensalista) {
+    const conflito = await existeConflitoDeHorario(mensalista.dia_semana, mensalista.horario, id);
+    if (conflito) {
+      mostrarToastAdmin("Não é possível reativar: já existe outro mensalista ativo nesse horário.");
+      return;
+    }
+  }
+
+  const { error } = await supabaseClient
+    .from("mensalistas")
+    .update({ ativo: novoAtivo })
+    .eq("id", id);
+
+  if (error) {
+    tratarErroSupabase(error, "Erro ao atualizar status do mensalista");
+    return;
+  }
+
+  if (mensalista) mensalista.ativo = novoAtivo;
+
+  renderizarMensalistas();
+  carregarDashboard(); // "Mensalistas ativos" muda no Dashboard, sem recarregar a página
+  fecharModalMensalista();
+  mostrarToastAdmin(novoAtivo ? "Mensalista reativado." : "Mensalista pausado.");
+}
+
+mensalistasFiltrosEl.querySelectorAll(".admin-chip").forEach((chip) => {
+  chip.addEventListener("click", () => {
+    filtroMensalistasAtivo = chip.dataset.filtro;
+
+    mensalistasFiltrosEl
+      .querySelectorAll(".admin-chip")
+      .forEach((c) => c.classList.toggle("is-active", c === chip));
+
+    renderizarMensalistas();
+  });
+});
+
+campoBuscaMensalistas.addEventListener("input", () => renderizarMensalistas());
+
+mensalistasListaEl.addEventListener("click", (event) => {
+  const card = event.target.closest(".admin-card[data-id]");
+  if (!card) return;
+  abrirModalMensalista(Number(card.dataset.id));
+});
+
+document.getElementById("modalMensalistaFechar").addEventListener("click", fecharModalMensalista);
+
+modalMensalistaOverlayEl.addEventListener("click", (event) => {
+  if (event.target === modalMensalistaOverlayEl) fecharModalMensalista();
+});
+
+document.addEventListener("keydown", (event) => {
+  if (event.key === "Escape" && !modalMensalistaOverlayEl.hidden) fecharModalMensalista();
+});
+
+formEditarMensalista.addEventListener("submit", (event) => {
+  event.preventDefault();
+
+  if (!mensalistaSelecionadoId) return;
+
+  const diaSemana = Number(document.getElementById("mensalistaEditDia").value);
+  const horario = document.getElementById("mensalistaEditHorario").value;
+
+  if (!horario) {
+    erroMensalistaHorarioEl.textContent = "Escolha um horário.";
+    return;
+  }
+
+  salvarEdicaoMensalista(mensalistaSelecionadoId, diaSemana, horario);
+});
+
+btnAlternarStatusMensalista.addEventListener("click", () => {
+  if (!mensalistaSelecionadoId) return;
+
+  const mensalista = MENSALISTAS_CACHE.find((item) => item.id === mensalistaSelecionadoId);
+  if (!mensalista) return;
+
+  alternarStatusMensalista(mensalistaSelecionadoId, !mensalista.ativo);
+});
+
+// Configurações
+const formConfiguracoes = document.getElementById("formConfiguracoes");
+const campoCfgNome = document.getElementById("cfgNomeBarbearia");
+const campoCfgWhatsapp = document.getElementById("cfgWhatsapp");
+const campoCfgPix = document.getElementById("cfgPix");
+const campoCfgAbertura = document.getElementById("cfgAbertura");
+const campoCfgFechamento = document.getElementById("cfgFechamento");
+const campoCfgAlmocoInicio = document.getElementById("cfgAlmocoInicio");
+const campoCfgAlmocoFim = document.getElementById("cfgAlmocoFim");
+
+// preenche o formulário com os dados vindos do Supabase (ou recém-salvos)
+function preencherFormularioConfiguracoes(config) {
+  campoCfgNome.value = config.nome_barbearia || "";
+  campoCfgWhatsapp.value = config.whatsapp_numero || "";
+  campoCfgPix.value = config.pix_chave || "";
+  campoCfgAbertura.value = config.horario_abertura || "";
+  campoCfgFechamento.value = config.horario_fechamento || "";
+  campoCfgAlmocoInicio.value = config.almoco_inicio || "";
+  campoCfgAlmocoFim.value = config.almoco_fim || "";
+}
+
+async function carregarConfiguracoes() {
+  const { data, error } = await supabaseClient
+    .from("configuracoes")
+    .select("*")
+    .eq("id", 1)
+    .single();
+
+  if (error) {
+    tratarErroSupabase(error, "Erro ao carregar configurações");
+    return;
+  }
+
+  preencherFormularioConfiguracoes(data);
+}
+
+async function salvarConfiguracoes() {
+  const dados = {
+    nome_barbearia: campoCfgNome.value.trim(),
+    whatsapp_numero: campoCfgWhatsapp.value.trim(),
+    pix_chave: campoCfgPix.value.trim(),
+    horario_abertura: campoCfgAbertura.value,
+    horario_fechamento: campoCfgFechamento.value,
+    almoco_inicio: campoCfgAlmocoInicio.value,
+    almoco_fim: campoCfgAlmocoFim.value,
+  };
+
+  const { data, error } = await supabaseClient
+    .from("configuracoes")
+    .update(dados)
+    .eq("id", 1)
+    .select()
+    .single();
+
+  if (error) {
+    tratarErroSupabase(error, "Erro ao salvar configurações");
+    return;
+  }
+
+  preencherFormularioConfiguracoes(data);
+  mostrarToastAdmin("Configurações salvas com sucesso.");
+}
+
+formConfiguracoes.addEventListener("submit", (event) => {
+  event.preventDefault();
+  salvarConfiguracoes();
 });

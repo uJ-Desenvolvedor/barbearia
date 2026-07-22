@@ -188,6 +188,17 @@
 
           <!-- Mensalistas -->
           <section class="admin-secao" id="secao-mensalistas" data-secao="mensalistas">
+            <div class="admin-filtros" id="mensalistasFiltros">
+              <button type="button" class="admin-chip is-active" data-filtro="todos">Todos</button>
+              <button type="button" class="admin-chip" data-filtro="ativos">Ativos</button>
+              <button type="button" class="admin-chip" data-filtro="pausados">Pausados</button>
+            </div>
+
+            <div class="admin-search">
+              <i class="fa-solid fa-magnifying-glass"></i>
+              <input type="text" id="mensalistasBusca" placeholder="Buscar por nome ou WhatsApp">
+            </div>
+
             <div class="admin-list" id="mensalistasLista">
               <p class="admin-empty">Carregando mensalistas…</p>
             </div>
@@ -319,6 +330,51 @@
           <div>
             <h3 class="admin-modal-subtitulo">Histórico de agendamentos</h3>
             <div class="admin-list" id="modalClienteHistorico"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Modal de mensalista (dia/horário fixo, status e histórico) -->
+    <div class="admin-modal-overlay" id="modalMensalistaOverlay" hidden>
+      <div class="admin-modal">
+        <div class="admin-modal-topo">
+          <h2 id="modalMensalistaTitulo">Mensalista</h2>
+          <button type="button" class="icon-btn" id="modalMensalistaFechar" aria-label="Fechar">
+            <i class="fa-solid fa-xmark"></i>
+          </button>
+        </div>
+
+        <div class="admin-modal-conteudo">
+          <form id="formEditarMensalista" class="admin-form" novalidate>
+            <div class="admin-form-row">
+              <div class="field">
+                <label for="mensalistaEditDia">Dia da semana</label>
+                <select id="mensalistaEditDia">
+                  <option value="0">Domingo</option>
+                  <option value="1">Segunda</option>
+                  <option value="2">Terça</option>
+                  <option value="3">Quarta</option>
+                  <option value="4">Quinta</option>
+                  <option value="5">Sexta</option>
+                  <option value="6">Sábado</option>
+                </select>
+              </div>
+              <div class="field">
+                <label for="mensalistaEditHorario">Horário fixo</label>
+                <input type="time" id="mensalistaEditHorario">
+              </div>
+            </div>
+            <span class="field-error" id="erroMensalistaHorario"></span>
+
+            <button type="submit" class="btn btn-primary">Salvar alterações</button>
+          </form>
+
+          <button type="button" class="btn btn-ghost" id="btnAlternarStatusMensalista">Pausar mensalista</button>
+
+          <div>
+            <h3 class="admin-modal-subtitulo">Histórico de agendamentos</h3>
+            <div class="admin-list" id="modalMensalistaHistorico"></div>
           </div>
         </div>
       </div>

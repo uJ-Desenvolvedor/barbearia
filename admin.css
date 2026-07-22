@@ -523,6 +523,22 @@
   width: 100%;
 }
 
+.field select {
+  width: 100%;
+  padding: 16px 18px;
+  background: var(--surface);
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius-md);
+  color: var(--text);
+  font-size: 1rem;
+  transition: border-color 0.15s var(--ease);
+}
+
+.field select:focus {
+  border-color: var(--gold);
+  outline: none;
+}
+
 /* ---------- Responsividade: desktop com sidebar ---------- */
 @media (min-width: 1024px) {
   .admin-painel {
